@@ -15,9 +15,12 @@ import (
 	"mvdan.cc/sh/interp"
 )
 
+var stdlibLookupMu = sync.Mutex{}
 var stdlibLookup = make(map[string]*bool)
 
 func isStdLib(pkg string) bool {
+	stdlibLookupMu.Lock()
+	defer stdlibLookupMu.Unlock()
 	if stdlibLookup[pkg] != nil {
 		return *stdlibLookup[pkg]
 	}
