@@ -143,7 +143,7 @@ func (b *buildBinder) shouldInvalidate(event taskrunner.InvalidationEvent) bool 
 			return true
 		}
 
-		for _, dep := range b.pkgDependencies {
+		for _, dep := range append(b.pkgDependencies, b.pkg) {
 			// Ignore dependencies that are part of the std lib.
 			if isStdLib(dep) {
 				continue
