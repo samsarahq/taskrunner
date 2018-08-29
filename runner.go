@@ -12,20 +12,20 @@ import (
 )
 
 var (
-	flags          = flag.NewFlagSet("taskrunner", 0)
+	Flags          = flag.NewFlagSet("taskrunner", 0)
 	configFile     string
 	nonInteractive bool
 	listTasks      bool
 )
 
 func init() {
-	flags.Usage = func() {
+	Flags.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: taskrunner [task...]\n")
-		flags.PrintDefaults()
+		Flags.PrintDefaults()
 	}
-	flags.StringVar(&configFile, "config", "", "Configuration file to use")
-	flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode")
-	flags.BoolVar(&listTasks, "list", false, "List all tasks")
+	Flags.StringVar(&configFile, "config", "", "Configuration file to use")
+	Flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode")
+	Flags.BoolVar(&listTasks, "list", false, "List all tasks")
 }
 
 type RunOptions struct {
@@ -47,7 +47,7 @@ func Run(tasks []*Task, options ...RunOption) {
 		option(runOptions)
 	}
 
-	if err := flags.Parse(os.Args[1:]); err != nil {
+	if err := Flags.Parse(os.Args[1:]); err != nil {
 		return
 	}
 
@@ -77,9 +77,9 @@ func Run(tasks []*Task, options ...RunOption) {
 
 	desiredTasks := config.DesiredTasks
 	config.Watch = !nonInteractive
-	if len(flags.Args()) > 0 {
+	if len(Flags.Args()) > 0 {
 		config.Watch = false
-		desiredTasks = flags.Args()
+		desiredTasks = Flags.Args()
 	}
 
 	if len(tasks) == 0 {

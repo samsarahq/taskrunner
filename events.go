@@ -5,13 +5,14 @@ import "time"
 type ExecutorEventKind string
 
 const (
-	ExecutorEventKind_TaskStarted     ExecutorEventKind = "task.started"
-	ExecutorEventKind_TaskCompleted                     = "task.completed"
-	ExecutorEventKind_TaskFailed                        = "task.failed"
-	ExecutorEventKind_TaskStopped                       = "task.stopped"
-	ExecutorEventKind_TaskInvalidated                   = "task.invalidated"
-	ExecutorEventKind_TaskDiagnostic                    = "task.diagnostic"
-	ExecutorEventKind_ExecutorSetup                     = "executor.setup"
+	ExecutorEventKind_TaskStarted       ExecutorEventKind = "task.started"
+	ExecutorEventKind_TaskCompleted                       = "task.completed"
+	ExecutorEventKind_TaskFailed                          = "task.failed"
+	ExecutorEventKind_TaskStopped                         = "task.stopped"
+	ExecutorEventKind_TaskInvalidated                     = "task.invalidated"
+	ExecutorEventKind_TaskDiagnostic                      = "task.diagnostic"
+	ExecutorEventKind_TaskRunShellEvent                   = "task.runshell"
+	ExecutorEventKind_ExecutorSetup                       = "executor.setup"
 )
 
 type ExecutorEvent interface {
@@ -91,4 +92,13 @@ type TaskDiagnosticEvent struct {
 
 func (e *TaskDiagnosticEvent) Kind() ExecutorEventKind {
 	return ExecutorEventKind_TaskDiagnostic
+}
+
+type TaskRunShellEvent struct {
+	*simpleEvent
+	Message string
+}
+
+func (e *TaskRunShellEvent) Kind() ExecutorEventKind {
+	return ExecutorEventKind_TaskRunShellEvent
 }

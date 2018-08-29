@@ -8,8 +8,14 @@ import (
 	"github.com/samsarahq/taskrunner"
 )
 
+var verbose bool
+
 type cli struct {
 	Executor *taskrunner.Executor
+}
+
+func init() {
+	taskrunner.Flags.BoolVar(&verbose, "v", false, "Show verbose output")
 }
 
 func Option(r *taskrunner.RunOptions) {
@@ -48,6 +54,10 @@ func (c *cli) Run(ctx context.Context) {
 			fmt.Fprintln(event.TaskHandler().LogStdout(), event.Error)
 		case *taskrunner.TaskDiagnosticEvent:
 			fmt.Fprintf(event.TaskHandler().LogStdout(), "Warning: %s", event.Error.Error())
+		case *taskrunner.TaskRunShellEvent:
+			if verbose {
+				fmt.Fprintf(event.TaskHandler().LogStdout(), "$: %s", event.Message)
+			}
 		case *taskrunner.TaskStoppedEvent:
 			fmt.Fprintf(event.TaskHandler().LogStdout(), "Stopped")
 		}

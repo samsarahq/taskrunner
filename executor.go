@@ -209,23 +209,30 @@ func (e *Executor) Run(ctx context.Context, taskNames ...string) error {
 	return e.wg.Wait()
 }
 
-func (e *Executor) shellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
-	options := []shell.RunOption{
-		func(r *interp.Runner) {
-			loggerI := ctx.Value(loggerKey{})
-			if loggerI == nil {
-				return
-			}
+func (e *Executor) shellRun(simpleEvent func() *simpleEvent) func(ctx context.Context, command string, opts ...shell.RunOption) error {
+	return func(ctx context.Context, command string, opts ...shell.RunOption) error {
+		e.publishEvent(&TaskRunShellEvent{
+			simpleEvent: simpleEvent(),
+			Message:     command,
+		})
 
-			logger := loggerI.(*Logger)
+		options := []shell.RunOption{
+			func(r *interp.Runner) {
+				loggerI := ctx.Value(loggerKey{})
+				if loggerI == nil {
+					return
+				}
 
-			r.Stdout = logger.Stdout
-			r.Stderr = logger.Stderr
-		},
+				logger := loggerI.(*Logger)
+
+				r.Stdout = logger.Stdout
+				r.Stderr = logger.Stderr
+			},
+		}
+		options = append(options, e.shellRunOptions...)
+		options = append(options, opts...)
+		return shell.Run(ctx, command, options...)
 	}
-	options = append(options, e.shellRunOptions...)
-	options = append(options, opts...)
-	return shell.Run(ctx, command, options...)
 }
 
 // runPass kicks off tasks that are in an executable state.
@@ -263,7 +270,7 @@ func (e *Executor) runPass() {
 
 					started := time.Now()
 
-					err = task.Run(ctx, e.shellRun)
+					err = task.Run(ctx, e.shellRun(execution.simpleEvent))
 
 					if ctx.Err() == context.Canceled {
 						e.publishEvent(&TaskStoppedEvent{
