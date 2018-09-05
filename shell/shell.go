@@ -2,8 +2,8 @@ package shell
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"mvdan.cc/sh/interp"
@@ -34,26 +34,9 @@ func Run(ctx context.Context, command string, opts ...RunOption) error {
 		return err
 	}
 
-	env, err := interp.EnvFromList(os.Environ())
+	r, err := interp.New()
 	if err != nil {
-		return err
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	r := &interp.Runner{
-		Dir: wd,
-		Env: env,
-
-		Exec: interp.DefaultExec,
-		Open: interp.OpenDevImpls(interp.DefaultOpen),
-
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		panic(fmt.Errorf("failed to set up interpreter: %s", err.Error()))
 	}
 
 	for _, opt := range opts {
