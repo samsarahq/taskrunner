@@ -20,6 +20,12 @@ func Stdout(writer io.Writer) RunOption {
 	}
 }
 
+func Stdin(reader io.Reader) RunOption {
+	return func(r *interp.Runner) {
+		r.Stdin = reader
+	}
+}
+
 func Env(vars map[string]string) RunOption {
 	return func(r *interp.Runner) {
 		for k, v := range vars {
