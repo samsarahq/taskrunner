@@ -60,7 +60,7 @@ func Run(tasks []*Task, options ...RunOption) {
 	}
 
 	if err != nil {
-		panic(err)
+		log.Fatalf("config error: unable to read config:\n%v\n", err)
 	}
 
 	if listTasks {
@@ -83,7 +83,7 @@ func Run(tasks []*Task, options ...RunOption) {
 	}
 
 	if len(tasks) == 0 {
-		panic(fmt.Errorf("no tasks specified"))
+		log.Fatalln("No tasks specified")
 	}
 	log.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
 	log.Printf("Watch mode: %t", config.Watch)
@@ -115,6 +115,6 @@ func Run(tasks []*Task, options ...RunOption) {
 	})
 
 	if err := g.Wait(); err != nil {
-		panic(err)
+		log.Fatalf("run error:\n%v\n", err)
 	}
 }

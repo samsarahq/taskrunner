@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"log"
 
 	zglob "github.com/mattn/go-zglob"
 	"github.com/samsarahq/taskrunner/watcher"
@@ -11,14 +12,14 @@ import (
 func IsTaskSource(task *Task, path string) (matches bool) {
 	for _, source := range task.Sources {
 		if ok, err := zglob.Match(source, path); err != nil {
-			panic(err)
+			log.Fatalf("invalid glob (%s):\n%v\n", path, err)
 		} else if ok {
 			matches = true
 		}
 	}
 	for _, ignore := range task.Ignore {
 		if ok, err := zglob.Match(ignore, path); err != nil {
-			panic(err)
+			log.Fatalf("invalid glob (%s):\n%v\n", path, err)
 		} else if ok {
 			matches = false
 		}
