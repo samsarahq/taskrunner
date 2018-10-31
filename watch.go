@@ -7,28 +7,31 @@ import (
 	"github.com/samsarahq/taskrunner/watcher"
 )
 
+// IsTaskSource checks if a provided path matches a source glob for the task.
+func IsTaskSource(task *Task, path string) (matches bool) {
+	for _, source := range task.Sources {
+		if ok, err := zglob.Match(source, path); err != nil {
+			panic(err)
+		} else if ok {
+			matches = true
+		}
+	}
+	for _, ignore := range task.Ignore {
+		if ok, err := zglob.Match(ignore, path); err != nil {
+			panic(err)
+		} else if ok {
+			matches = false
+		}
+	}
+	return matches
+}
+
 func (e *Executor) runWatch(ctx context.Context) {
 	watcher := watcher.NewWatcher(e.config.projectPath())
 	go func() {
 		for event := range watcher.Events() {
 			for task := range e.tasks {
-				matches := false
-				for _, source := range task.Sources {
-					if ok, err := zglob.Match(source, event.RelativeFilename); err != nil {
-						panic(err)
-					} else if ok {
-						matches = true
-					}
-				}
-				for _, ignore := range task.Ignore {
-					if ok, err := zglob.Match(ignore, event.RelativeFilename); err != nil {
-						panic(err)
-					} else if ok {
-						matches = false
-					}
-				}
-
-				if matches {
+				if IsTaskSource(task, event.RelativeFilename) {
 					go e.Invalidate(task, FileChange{
 						File: event.RelativeFilename,
 					})
