@@ -109,7 +109,7 @@ func (s *Server) registerTaskHandler(schema *schemabuilder.Schema) {
 	})
 
 	object.FieldFunc("state", func(ctx context.Context, task *taskrunner.TaskHandler) taskrunner.TaskHandlerExecutionState {
-		reactive.AddDependency(ctx, s.Broadcaster.ResourceFor(task.Definition()))
+		reactive.AddDependency(ctx, s.Broadcaster.ResourceFor(task.Definition()), nil)
 
 		return task.State()
 	})
@@ -117,7 +117,7 @@ func (s *Server) registerTaskHandler(schema *schemabuilder.Schema) {
 	object.FieldFunc("logs", func(ctx context.Context, task *taskrunner.TaskHandler, args struct {
 		Html *bool
 	}) string {
-		reactive.AddDependency(ctx, task.LiveLogger().Resource)
+		reactive.AddDependency(ctx, task.LiveLogger().Resource, nil)
 
 		if args.Html != nil && *args.Html {
 			return string(terminal.Render(task.LiveLogger().Logs.Bytes()))
