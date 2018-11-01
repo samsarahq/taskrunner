@@ -141,8 +141,7 @@ func (server *Server) Run(ctx context.Context) error {
 		Handler: router,
 	}
 
-	events, done := server.Executor.Subscribe()
-	defer done()
+	events := server.Executor.Subscribe()
 
 	server.Broadcaster = NewBroadcaster(events)
 	server.Broadcaster.Run()

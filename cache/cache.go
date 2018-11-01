@@ -32,13 +32,13 @@ func New(opts ...shell.RunOption) *Cache {
 	}
 }
 
-func (c *Cache) Option(r *taskrunner.RunOptions) {
-	r.ReporterFns = append(r.ReporterFns, func(ctx context.Context, executor *taskrunner.Executor) error {
+func (c *Cache) Option(r *taskrunner.Runtime) {
+	r.OnStart(func(ctx context.Context, executor *taskrunner.Executor) error {
 		c.cacheFile = getCacheFilePath(executor.Config().WorkingDir())
-		c.Start(ctx)
-		<-ctx.Done()
-		c.Finish(ctx)
-		return nil
+		return c.Start(ctx)
+	})
+	r.OnStop(func(ctx context.Context, executor *taskrunner.Executor) error {
+		return c.Finish(ctx)
 	})
 }
 

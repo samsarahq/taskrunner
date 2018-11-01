@@ -26,10 +26,6 @@ type Executor struct {
 	// multiple plans or multiple passes from running concurrently.
 	mu sync.Mutex
 
-	// subscriptionsMu locks on operations with event subscriptions, unsubscriptions,
-	// and publishing.
-	subscriptionsMu sync.Mutex
-
 	// wg blocks until the executor has completed all tasks.
 	wg errgroup.Group
 
@@ -43,9 +39,8 @@ type Executor struct {
 
 	shellRunOptions []shell.RunOption
 
-	// eventsCh keeps track of subscribers to events for this executor. It's access
-	// should be guarded by subMu.
-	eventsChs map[chan ExecutorEvent]struct{}
+	// eventsCh keeps track of subscribers to events for this executor.
+	eventsChs []chan ExecutorEvent
 }
 
 type ExecutorOption func(*Executor)
@@ -62,7 +57,6 @@ func NewExecutor(config *Config, tasks []*Task, opts ...ExecutorOption) *Executo
 		config:         config,
 		invalidationCh: make(chan struct{}, 1),
 		taskRegistry:   make(map[string]*Task),
-		eventsChs:      make(map[chan ExecutorEvent]struct{}),
 	}
 
 	for _, opt := range opts {
@@ -82,30 +76,15 @@ func (e *Executor) Config() *Config { return e.config }
 // Subscribe returns a channel of executor-level events. Each invocation
 // of Events() returns a new channel. The done function should be called
 // to unregister this channel.
-func (e *Executor) Subscribe() (events <-chan ExecutorEvent, done func()) {
-	e.subscriptionsMu.Lock()
-	defer e.subscriptionsMu.Unlock()
-
-	once := sync.Once{}
-
+func (e *Executor) Subscribe() (events <-chan ExecutorEvent) {
 	ch := make(chan ExecutorEvent, 1024)
-	e.eventsChs[ch] = struct{}{}
-	return ch, func() {
-		once.Do(func() {
-			e.subscriptionsMu.Lock()
-			defer e.subscriptionsMu.Unlock()
-			close(ch)
-			delete(e.eventsChs, ch)
-		})
-	}
+	e.eventsChs = append(e.eventsChs, ch)
+	return ch
 }
 
 func (e *Executor) publishEvent(event ExecutorEvent) {
-	e.subscriptionsMu.Lock()
-	defer e.subscriptionsMu.Unlock()
-
-	for eventsCh := range e.eventsChs {
-		eventsCh <- event
+	for _, ch := range e.eventsChs {
+		ch <- event
 	}
 }
 
@@ -178,8 +157,13 @@ func (e *Executor) Invalidate(task *Task, event InvalidationEvent) {
 	e.invalidationCh <- struct{}{}
 }
 
-func (e *Executor) Run(ctx context.Context, taskNames ...string) error {
+func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime) error {
 	e.ctx = ctx
+	defer func() {
+		for _, ch := range e.eventsChs {
+			close(ch)
+		}
+	}()
 	e.runInvalidationLoop()
 	if e.config.Watch {
 		e.runWatch(ctx)
@@ -206,10 +190,28 @@ func (e *Executor) Run(ctx context.Context, taskNames ...string) error {
 	SetDefaultPadding(longestTaskNameLength)
 
 	e.tasks = taskSet
+
+	// Run all onStartHooks before starting, after the DAG has been created.
+	for _, hook := range runtime.onStartHooks {
+		if err := hook(ctx, e); err != nil {
+			return err
+		}
+	}
 	e.runPass()
 
 	// Wait on all tasks to exit before stopping.
-	return e.wg.Wait()
+	if err := e.wg.Wait(); err != nil {
+		return err
+	}
+
+	// Run all onStopHooks after stopping.
+	for _, hook := range runtime.onStopHooks {
+		if err := hook(ctx, e); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (e *Executor) shellRun(ctx context.Context, command string, opts ...shell.RunOption) error {

@@ -28,23 +28,43 @@ func init() {
 	flags.BoolVar(&listTasks, "list", false, "List all tasks")
 }
 
-type RunOptions struct {
-	ReporterFns     []func(ctx context.Context, executor *Executor) error
-	ExecutorOptions []ExecutorOption
+// Runtime represents the external interface of an Executor's runtime. It is how taskrunner
+// extensions can register themselves to taskrunner's lifecycle.
+type Runtime struct {
+	subscriptions   []func(events <-chan ExecutorEvent) error
+	onStartHooks    []func(ctx context.Context, executor *Executor) error
+	onStopHooks     []func(ctx context.Context, executor *Executor) error
+	executorOptions []ExecutorOption
 }
 
-type RunOption func(options *RunOptions)
+// OnStart is run after taskrunner has built up its task execution list.
+func (r *Runtime) OnStart(f func(context.Context, *Executor) error) {
+	r.onStartHooks = append(r.onStartHooks, f)
+}
+
+// Subscribe provides an events stream channel that is populated after taskrunner has loaded. The
+// channel is read-only and is automatically closed on exit.
+func (r *Runtime) Subscribe(f func(events <-chan ExecutorEvent) error) {
+	r.subscriptions = append(r.subscriptions, f)
+}
+
+// OnStop is before taskrunner exits (either because its tasks have exited or because of a SIGINT).
+func (r *Runtime) OnStop(f func(context.Context, *Executor) error) {
+	r.onStopHooks = append(r.onStopHooks, f)
+}
+
+type RunOption func(options *Runtime)
 
 func ExecutorOptions(opts ...ExecutorOption) RunOption {
-	return func(r *RunOptions) {
-		r.ExecutorOptions = append(r.ExecutorOptions, opts...)
+	return func(r *Runtime) {
+		r.executorOptions = append(r.executorOptions, opts...)
 	}
 }
 
 func Run(tasks []*Task, options ...RunOption) {
-	runOptions := &RunOptions{}
+	runtime := &Runtime{}
 	for _, option := range options {
-		option(runOptions)
+		option(runtime)
 	}
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
@@ -73,7 +93,7 @@ func Run(tasks []*Task, options ...RunOption) {
 	}
 
 	log.Println("Using config", config.ConfigFilePath())
-	executor := NewExecutor(config, tasks, runOptions.ExecutorOptions...)
+	executor := NewExecutor(config, tasks, runtime.executorOptions...)
 
 	desiredTasks := config.DesiredTasks
 	config.Watch = !nonInteractive
@@ -92,19 +112,16 @@ func Run(tasks []*Task, options ...RunOption) {
 	onInterruptSignal(cancel)
 
 	g, ctx := errgroup.WithContext(ctx)
-
-	// Reporters should use a different context because we want to stage
-	// their cancellation after the executor itself has been completed.
-	reporterCtx, cancelReporter := context.WithCancel(context.Background())
-	for _, reporterFn := range runOptions.ReporterFns {
+	for i := range runtime.subscriptions {
+		sub := runtime.subscriptions[i]
+		ch := executor.Subscribe()
 		g.Go(func() error {
-			return reporterFn(reporterCtx, executor)
+			return sub(ch)
 		})
 	}
 
 	g.Go(func() error {
-		defer cancelReporter()
-		err := executor.Run(ctx, desiredTasks...)
+		err := executor.Run(ctx, desiredTasks, runtime)
 
 		// We only care about propagating errors up to the errgroup
 		// if we were not in watch mode.
