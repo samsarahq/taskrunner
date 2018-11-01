@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/samsarahq/taskrunner"
 	"github.com/samsarahq/taskrunner/shell"
@@ -20,19 +21,36 @@ type Cache struct {
 	cacheFile   string
 	allDirty    bool
 	dirtyFiles  []string
+
+	opts []shell.RunOption
 }
 
-func New() *Cache {
+func New(opts ...shell.RunOption) *Cache {
 	return &Cache{
-		ranOnce:   make(map[*taskrunner.Task]bool),
-		cacheFile: path.Join(CacheDir, "example.json"),
+		ranOnce: make(map[*taskrunner.Task]bool),
+		opts:    opts,
 	}
 }
 
-func (c *Cache) Start(ctx context.Context, opt shell.RunOption) error {
+func (c *Cache) Option(r *taskrunner.RunOptions) {
+	r.ReporterFns = append(r.ReporterFns, func(ctx context.Context, executor *taskrunner.Executor) error {
+		c.cacheFile = getCacheFilePath(executor.Config().WorkingDir())
+		c.Start(ctx)
+		<-ctx.Done()
+		c.Finish(ctx)
+		return nil
+	})
+}
+
+func getCacheFilePath(dir string) string {
+	hashedName := strings.Replace(dir, "/", "%", -1)
+	return path.Join(CacheDir, hashedName)
+}
+
+func (c *Cache) Start(ctx context.Context) error {
 	c.snapshotter = newSnapshotter(
 		func(ctx context.Context, command string, opts ...shell.RunOption) error {
-			return shell.Run(ctx, command, append(opts, opt)...)
+			return shell.Run(ctx, command, append(opts, c.opts...)...)
 		},
 	)
 
