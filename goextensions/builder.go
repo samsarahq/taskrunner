@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/samsarahq/taskrunner"
+	"github.com/samsarahq/taskrunner/clireporter"
 	"github.com/samsarahq/taskrunner/shell"
 	"mvdan.cc/sh/interp"
 )
@@ -83,12 +84,12 @@ func (b *GoBuilder) build() {
 	pkgList := strings.Join(packages, " ")
 	b.packages = make(map[string]struct{})
 
-	stdout := &taskrunner.PrefixedWriter{Writer: os.Stdout, Prefix: "go/build/dev", Separator: ">"}
+	stdout := &clireporter.PrefixedWriter{Writer: os.Stdout, Prefix: "go/build/dev", Separator: ">"}
 	fmt.Fprintf(stdout, "building packages: %s", pkgList)
 
 	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), func(r *interp.Runner) {
 		r.Stdout = stdout
-		r.Stderr = &taskrunner.PrefixedWriter{Writer: os.Stderr, Prefix: "go/build/dev", Separator: ">"}
+		r.Stderr = &clireporter.PrefixedWriter{Writer: os.Stderr, Prefix: "go/build/dev", Separator: ">"}
 	})
 	fmt.Fprintln(stdout, "Completed")
 

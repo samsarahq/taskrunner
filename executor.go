@@ -179,16 +179,6 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 		taskSet.add(ctx, task)
 	}
 
-	// Find longest task name length for padding
-	var longestTaskNameLength int
-	for task := range taskSet {
-		length := len(task.Name)
-		if length > longestTaskNameLength {
-			longestTaskNameLength = length
-		}
-	}
-	SetDefaultPadding(longestTaskNameLength)
-
 	e.tasks = taskSet
 
 	// Run all onStartHooks before starting, after the DAG has been created.
@@ -233,6 +223,21 @@ func (e *Executor) shellRun(ctx context.Context, command string, opts ...shell.R
 	return shell.Run(ctx, command, options...)
 }
 
+func (e *Executor) taskExecution(t *Task) *taskExecution { return e.tasks[t] }
+func (e *Executor) provideEventLogger(t *Task) *Logger {
+	stderr := &eventLogger{
+		executor: e,
+		task:     t,
+		stream:   TaskLogEventStderr,
+	}
+	stdout := *stderr
+	stdout.stream = TaskLogEventStdout
+	return &Logger{
+		Stderr: stderr,
+		Stdout: &stdout,
+	}
+}
+
 // runPass kicks off tasks that are in an executable state.
 func (e *Executor) runPass() {
 	e.mu.Lock()
@@ -244,21 +249,12 @@ func (e *Executor) runPass() {
 
 			func(task *Task, execution *taskExecution) {
 				e.wg.Go(func() error {
-					logger, err := e.config.LogProvider()(task)
-					if err != nil {
-						// Default to stdout/stderr.
-						e.publishEvent(&TaskDiagnosticEvent{
-							simpleEvent: execution.simpleEvent(),
-							Error:       oops.Wrapf(err, "failed to initialize log provider"),
-						})
-					}
-
 					liveLogger, err := execution.liveLogger.Provider(task)
 					if err != nil {
 						panic(err)
 					}
 
-					logger = MergeLoggers(logger, liveLogger)
+					logger := MergeLoggers(liveLogger, e.provideEventLogger(task))
 
 					ctx := context.WithValue(execution.ctx, loggerKey{}, logger)
 

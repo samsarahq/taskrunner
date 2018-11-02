@@ -82,20 +82,6 @@ func ReadConfig(configPath string) (*Config, error) {
 	return &config, nil
 }
 
-func (config *Config) LogProvider() LogProvider {
-	switch config.LogMode {
-	case LogMode_Stdout:
-		return StdoutLogProvider
-	case LogMode_LogfilesAppend:
-		return LogfilesAppendProvider
-	case LogMode_LogfilesByDate:
-		return LogfilesByDateProvider
-	}
-
-	log.Fatalf("config error: unknown log mode (%s)\n", config.LogMode)
-	return nil
-}
-
 func (config *Config) ConfigFilePath() string {
 	path, err := filepath.Abs(config.configPath)
 	if err != nil {
