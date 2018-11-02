@@ -204,7 +204,7 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 	return nil
 }
 
-func (e *Executor) shellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
+func (e *Executor) ShellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
 	options := []shell.RunOption{
 		func(r *interp.Runner) {
 			loggerI := ctx.Value(loggerKey{})
@@ -264,7 +264,7 @@ func (e *Executor) runPass() {
 
 					started := time.Now()
 
-					err = task.Run(ctx, e.shellRun)
+					err = task.Run(ctx, e.ShellRun)
 
 					if ctx.Err() == context.Canceled {
 						e.publishEvent(&TaskStoppedEvent{
