@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/samsarahq/go/oops"
-	"github.com/samsarahq/taskrunner/shell"
-	"mvdan.cc/sh/interp"
 )
 
 type LogMode string
@@ -107,13 +105,8 @@ func (config *Config) ConfigFilePath() string {
 	return path
 }
 
-func (config *Config) ShellDirectory(dir string) shell.RunOption {
-	return func(r *interp.Runner) {
-		r.Dir = filepath.Join(config.projectPath(), dir)
-	}
-}
-
-func (config *Config) projectPath() string {
+// WorkingDir returns taskrunner's working directory.
+func (config *Config) WorkingDir() string {
 	configPath, err := filepath.Abs(config.configPath)
 	if err != nil {
 		log.Fatalf("config error: unable to find config file (%s):\n%v\n", config.configPath, err)

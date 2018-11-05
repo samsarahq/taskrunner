@@ -76,6 +76,9 @@ func NewExecutor(config *Config, tasks []*Task, opts ...ExecutorOption) *Executo
 	return executor
 }
 
+// Config returns the taskrunner configuration.
+func (e *Executor) Config() *Config { return e.config }
+
 // Subscribe returns a channel of executor-level events. Each invocation
 // of Events() returns a new channel. The done function should be called
 // to unregister this channel.
