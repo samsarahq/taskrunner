@@ -2,8 +2,8 @@ package taskrunner
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -94,13 +94,14 @@ func (config *Config) LogProvider() LogProvider {
 		return LogfilesByDateProvider
 	}
 
-	panic(fmt.Errorf("unknown log mode: %s", config.LogMode))
+	log.Fatalf("config error: unknown log mode (%s)\n", config.LogMode)
+	return nil
 }
 
 func (config *Config) ConfigFilePath() string {
 	path, err := filepath.Abs(config.configPath)
 	if err != nil {
-		panic(err)
+		log.Fatalf("config error: unable to find config file (%s):\n%v\n", config.configPath, err)
 	}
 
 	return path
@@ -115,7 +116,7 @@ func (config *Config) ShellDirectory(dir string) shell.RunOption {
 func (config *Config) projectPath() string {
 	configPath, err := filepath.Abs(config.configPath)
 	if err != nil {
-		panic(err)
+		log.Fatalf("config error: unable to find config file (%s):\n%v\n", config.configPath, err)
 	}
 
 	return filepath.Join(filepath.Dir(configPath), config.Path)

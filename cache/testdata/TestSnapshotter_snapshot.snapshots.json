@@ -1,0 +1,58 @@
+[
+  {
+    "Name": "snapshot with modified files",
+    "Values": [
+      {
+        "commitSha": "commit-sha",
+        "uncommittedFiles": [
+          {
+            "md5": "hashedyay",
+            "path": "yay"
+          },
+          {
+            "md5": "hashedno/bar.go",
+            "path": "no/bar.go"
+          },
+          {
+            "md5": "hashedno/baz.go",
+            "path": "no/baz.go"
+          },
+          {
+            "md5": "hashedfoo",
+            "path": "foo"
+          },
+          {
+            "md5": "hashedtest/bar.go",
+            "path": "test/bar.go"
+          },
+          {
+            "md5": "hashedtest/baz.go",
+            "path": "test/baz.go"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Name": "snapshot without modified files",
+    "Values": [
+      {
+        "commitSha": "commit-sha",
+        "uncommittedFiles": [
+          {
+            "md5": "hashedyay",
+            "path": "yay"
+          },
+          {
+            "md5": "hashedno/bar.go",
+            "path": "no/bar.go"
+          },
+          {
+            "md5": "hashedno/baz.go",
+            "path": "no/baz.go"
+          }
+        ]
+      }
+    ]
+  }
+]
