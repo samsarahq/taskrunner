@@ -204,6 +204,10 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 	return nil
 }
 
+// ShellRun executes a shell.Run with some default options:
+// Commands for tasks are automatically logged (stderr and stdout are forwarded).
+// Commands run in a consistent environment (configurable on a taskrunner level).
+// Commands run in taskrunner's working directory.
 func (e *Executor) ShellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
 	options := []shell.RunOption{
 		func(r *interp.Runner) {
