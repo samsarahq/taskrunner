@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/samsarahq/go/oops"
-	"github.com/samsarahq/taskrunner/shell"
-	"mvdan.cc/sh/interp"
 )
 
 type LogMode string
@@ -84,20 +82,6 @@ func ReadConfig(configPath string) (*Config, error) {
 	return &config, nil
 }
 
-func (config *Config) LogProvider() LogProvider {
-	switch config.LogMode {
-	case LogMode_Stdout:
-		return StdoutLogProvider
-	case LogMode_LogfilesAppend:
-		return LogfilesAppendProvider
-	case LogMode_LogfilesByDate:
-		return LogfilesByDateProvider
-	}
-
-	log.Fatalf("config error: unknown log mode (%s)\n", config.LogMode)
-	return nil
-}
-
 func (config *Config) ConfigFilePath() string {
 	path, err := filepath.Abs(config.configPath)
 	if err != nil {
@@ -107,13 +91,8 @@ func (config *Config) ConfigFilePath() string {
 	return path
 }
 
-func (config *Config) ShellDirectory(dir string) shell.RunOption {
-	return func(r *interp.Runner) {
-		r.Dir = filepath.Join(config.projectPath(), dir)
-	}
-}
-
-func (config *Config) projectPath() string {
+// WorkingDir returns taskrunner's working directory.
+func (config *Config) WorkingDir() string {
 	configPath, err := filepath.Abs(config.configPath)
 	if err != nil {
 		log.Fatalf("config error: unable to find config file (%s):\n%v\n", config.configPath, err)

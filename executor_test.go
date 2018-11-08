@@ -61,7 +61,7 @@ func TestExecutorSimple(t *testing.T) {
 		{
 			"single task",
 			func(t *testing.T) {
-				executor.Run(ctx, "A")
+				executor.Run(ctx, []string{"A"}, &taskrunner.Runtime{})
 				mockA.ExpectCalls(t, 1)
 				mockB.ExpectCalls(t, 0)
 			},
@@ -70,7 +70,7 @@ func TestExecutorSimple(t *testing.T) {
 			"dependent task",
 			func(t *testing.T) {
 				ctx = context.Background()
-				executor.Run(ctx, "B")
+				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{})
 
 				mockA.ExpectCalls(t, 1)
 				mockB.ExpectCalls(t, 1)
@@ -131,7 +131,6 @@ func TestExecutorInvalidations(t *testing.T) {
 	}
 
 	tasks := []*taskrunner.Task{taskA, taskB}
-	executor := taskrunner.NewExecutor(config, tasks)
 
 	for _, testcase := range []struct {
 		Name string
@@ -140,9 +139,9 @@ func TestExecutorInvalidations(t *testing.T) {
 		{
 			"dependency invalidated",
 			func(t *testing.T) {
+				executor := taskrunner.NewExecutor(config, tasks)
 				ctx, cancel := context.WithCancel(context.Background())
-				events, done := executor.Subscribe()
-				defer done()
+				events := executor.Subscribe()
 
 				go func() {
 					assert.Equal(t, taskA, consumeUntil(t, events, taskrunner.ExecutorEventKind_TaskCompleted).TaskHandler().Definition(), "expected first task to be taskA")
@@ -160,15 +159,15 @@ func TestExecutorInvalidations(t *testing.T) {
 					cancel()
 				}()
 
-				executor.Run(ctx, "B")
+				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{})
 			},
 		},
 		{
 			"leaf invalidated",
 			func(t *testing.T) {
+				executor := taskrunner.NewExecutor(config, tasks)
 				ctx, cancel := context.WithCancel(context.Background())
-				events, done := executor.Subscribe()
-				defer done()
+				events := executor.Subscribe()
 
 				go func() {
 					assert.Equal(t, taskA, consumeUntil(t, events, taskrunner.ExecutorEventKind_TaskCompleted).TaskHandler().Definition(), "expected first task to be taskA")
@@ -185,7 +184,7 @@ func TestExecutorInvalidations(t *testing.T) {
 					cancel()
 				}()
 
-				executor.Run(ctx, "B")
+				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{})
 			},
 		},
 	} {

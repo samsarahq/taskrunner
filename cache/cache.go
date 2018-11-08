@@ -2,9 +2,11 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/samsarahq/taskrunner"
 	"github.com/samsarahq/taskrunner/shell"
@@ -20,19 +22,36 @@ type Cache struct {
 	cacheFile   string
 	allDirty    bool
 	dirtyFiles  []string
+
+	opts []shell.RunOption
 }
 
-func New() *Cache {
+func New(opts ...shell.RunOption) *Cache {
 	return &Cache{
-		ranOnce:   make(map[*taskrunner.Task]bool),
-		cacheFile: path.Join(CacheDir, "example.json"),
+		ranOnce: make(map[*taskrunner.Task]bool),
+		opts:    opts,
 	}
 }
 
-func (c *Cache) Start(ctx context.Context, opt shell.RunOption) error {
+func (c *Cache) Option(r *taskrunner.Runtime) {
+	r.OnStart(func(ctx context.Context, executor *taskrunner.Executor) error {
+		c.cacheFile = getCacheFilePath(executor.Config().WorkingDir())
+		return c.Start(ctx)
+	})
+	r.OnStop(func(ctx context.Context, executor *taskrunner.Executor) error {
+		return c.Finish(ctx)
+	})
+}
+
+func getCacheFilePath(dir string) string {
+	hashedName := strings.Replace(dir, "/", "%", -1)
+	return path.Join(CacheDir, hashedName)
+}
+
+func (c *Cache) Start(ctx context.Context) error {
 	c.snapshotter = newSnapshotter(
 		func(ctx context.Context, command string, opts ...shell.RunOption) error {
-			return shell.Run(ctx, command, append(opts, opt)...)
+			return shell.Run(ctx, command, append(opts, c.opts...)...)
 		},
 	)
 
@@ -86,7 +105,10 @@ func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.Shel
 	return func(ctx context.Context, shellRun shell.ShellRun) error {
 		if c.isFirstRun(task) && c.isValid(task) {
 			// report that the task wasn't run
-			return shellRun(ctx, `echo "no changes (cache)"`)
+			logger := taskrunner.LoggerFromContext(ctx)
+			if logger != nil {
+				fmt.Fprintln(logger.Stdout, "no changes (cache)")
+			}
 		}
 		return task.Run(ctx, shellRun)
 	}

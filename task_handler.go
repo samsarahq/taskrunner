@@ -1,7 +1,6 @@
 package taskrunner
 
 import (
-	"io"
 	"sort"
 )
 
@@ -21,10 +20,6 @@ func (h *TaskHandler) Definition() *Task {
 
 func (h *TaskHandler) Invalidate(reason InvalidationEvent) {
 	h.Invalidate(reason)
-}
-
-func (h *TaskHandler) LogStdout() io.Writer {
-	return h.execution.logOutput
 }
 
 type TaskHandlerExecutionState string

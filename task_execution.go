@@ -2,8 +2,6 @@ package taskrunner
 
 import (
 	"context"
-	"io"
-	"os"
 	"sync"
 	"time"
 )
@@ -32,8 +30,6 @@ type taskExecution struct {
 	dependents   []*taskExecution
 
 	pendingInvalidations map[InvalidationEvent]struct{}
-
-	logOutput io.Writer
 
 	liveLogger *LiveLogger
 }
@@ -116,11 +112,7 @@ func (s taskSet) add(executionCtx context.Context, task *Task) (*taskExecution, 
 		state:                taskExecutionState_invalid,
 		terminalCh:           make(chan struct{}, 1),
 		pendingInvalidations: make(map[InvalidationEvent]struct{}),
-		logOutput: &PrefixedWriter{
-			Writer: os.Stderr,
-			Prefix: task.Name,
-		},
-		liveLogger: NewLiveLogger(),
+		liveLogger:           NewLiveLogger(),
 	}
 
 	var dependencies []*taskExecution

@@ -11,6 +11,7 @@ const (
 	ExecutorEventKind_TaskStopped                       = "task.stopped"
 	ExecutorEventKind_TaskInvalidated                   = "task.invalidated"
 	ExecutorEventKind_TaskDiagnostic                    = "task.diagnostic"
+	ExecutorEventKind_TaskLog                           = "task.log"
 	ExecutorEventKind_ExecutorSetup                     = "executor.setup"
 )
 
@@ -47,6 +48,23 @@ type TaskStartedEvent struct {
 
 func (e *TaskStartedEvent) Kind() ExecutorEventKind {
 	return ExecutorEventKind_TaskStarted
+}
+
+type TaskLogEventStream int
+
+const (
+	TaskLogEventStdout TaskLogEventStream = iota
+	TaskLogEventStderr
+)
+
+type TaskLogEvent struct {
+	*simpleEvent
+	Message string
+	Stream  TaskLogEventStream
+}
+
+func (e *TaskLogEvent) Kind() ExecutorEventKind {
+	return ExecutorEventKind_TaskLog
 }
 
 type TaskCompletedEvent struct {

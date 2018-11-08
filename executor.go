@@ -26,10 +26,6 @@ type Executor struct {
 	// multiple plans or multiple passes from running concurrently.
 	mu sync.Mutex
 
-	// subscriptionsMu locks on operations with event subscriptions, unsubscriptions,
-	// and publishing.
-	subscriptionsMu sync.Mutex
-
 	// wg blocks until the executor has completed all tasks.
 	wg errgroup.Group
 
@@ -43,9 +39,8 @@ type Executor struct {
 
 	shellRunOptions []shell.RunOption
 
-	// eventsCh keeps track of subscribers to events for this executor. It's access
-	// should be guarded by subMu.
-	eventsChs map[chan ExecutorEvent]struct{}
+	// eventsCh keeps track of subscribers to events for this executor.
+	eventsChs []chan ExecutorEvent
 }
 
 type ExecutorOption func(*Executor)
@@ -62,7 +57,6 @@ func NewExecutor(config *Config, tasks []*Task, opts ...ExecutorOption) *Executo
 		config:         config,
 		invalidationCh: make(chan struct{}, 1),
 		taskRegistry:   make(map[string]*Task),
-		eventsChs:      make(map[chan ExecutorEvent]struct{}),
 	}
 
 	for _, opt := range opts {
@@ -76,33 +70,21 @@ func NewExecutor(config *Config, tasks []*Task, opts ...ExecutorOption) *Executo
 	return executor
 }
 
+// Config returns the taskrunner configuration.
+func (e *Executor) Config() *Config { return e.config }
+
 // Subscribe returns a channel of executor-level events. Each invocation
 // of Events() returns a new channel. The done function should be called
 // to unregister this channel.
-func (e *Executor) Subscribe() (events <-chan ExecutorEvent, done func()) {
-	e.subscriptionsMu.Lock()
-	defer e.subscriptionsMu.Unlock()
-
-	once := sync.Once{}
-
+func (e *Executor) Subscribe() (events <-chan ExecutorEvent) {
 	ch := make(chan ExecutorEvent, 1024)
-	e.eventsChs[ch] = struct{}{}
-	return ch, func() {
-		once.Do(func() {
-			e.subscriptionsMu.Lock()
-			defer e.subscriptionsMu.Unlock()
-			close(ch)
-			delete(e.eventsChs, ch)
-		})
-	}
+	e.eventsChs = append(e.eventsChs, ch)
+	return ch
 }
 
 func (e *Executor) publishEvent(event ExecutorEvent) {
-	e.subscriptionsMu.Lock()
-	defer e.subscriptionsMu.Unlock()
-
-	for eventsCh := range e.eventsChs {
-		eventsCh <- event
+	for _, ch := range e.eventsChs {
+		ch <- event
 	}
 }
 
@@ -175,8 +157,13 @@ func (e *Executor) Invalidate(task *Task, event InvalidationEvent) {
 	e.invalidationCh <- struct{}{}
 }
 
-func (e *Executor) Run(ctx context.Context, taskNames ...string) error {
+func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime) error {
 	e.ctx = ctx
+	defer func() {
+		for _, ch := range e.eventsChs {
+			close(ch)
+		}
+	}()
 	e.runInvalidationLoop()
 	if e.config.Watch {
 		e.runWatch(ctx)
@@ -192,32 +179,42 @@ func (e *Executor) Run(ctx context.Context, taskNames ...string) error {
 		taskSet.add(ctx, task)
 	}
 
-	// Find longest task name length for padding
-	var longestTaskNameLength int
-	for task := range taskSet {
-		length := len(task.Name)
-		if length > longestTaskNameLength {
-			longestTaskNameLength = length
+	e.tasks = taskSet
+
+	// Run all onStartHooks before starting, after the DAG has been created.
+	for _, hook := range runtime.onStartHooks {
+		if err := hook(ctx, e); err != nil {
+			return err
 		}
 	}
-	SetDefaultPadding(longestTaskNameLength)
-
-	e.tasks = taskSet
 	e.runPass()
 
 	// Wait on all tasks to exit before stopping.
-	return e.wg.Wait()
+	if err := e.wg.Wait(); err != nil {
+		return err
+	}
+
+	// Run all onStopHooks after stopping.
+	for _, hook := range runtime.onStopHooks {
+		if err := hook(ctx, e); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func (e *Executor) shellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
+// ShellRun executes a shell.Run with some default options:
+// Commands for tasks are automatically logged (stderr and stdout are forwarded).
+// Commands run in a consistent environment (configurable on a taskrunner level).
+// Commands run in taskrunner's working directory.
+func (e *Executor) ShellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
 	options := []shell.RunOption{
 		func(r *interp.Runner) {
-			loggerI := ctx.Value(loggerKey{})
-			if loggerI == nil {
+			logger := LoggerFromContext(ctx)
+			if logger == nil {
 				return
 			}
-
-			logger := loggerI.(*Logger)
 
 			r.Stdout = logger.Stdout
 			r.Stderr = logger.Stderr
@@ -226,6 +223,21 @@ func (e *Executor) shellRun(ctx context.Context, command string, opts ...shell.R
 	options = append(options, e.shellRunOptions...)
 	options = append(options, opts...)
 	return shell.Run(ctx, command, options...)
+}
+
+func (e *Executor) taskExecution(t *Task) *taskExecution { return e.tasks[t] }
+func (e *Executor) provideEventLogger(t *Task) *Logger {
+	stderr := &eventLogger{
+		executor: e,
+		task:     t,
+		stream:   TaskLogEventStderr,
+	}
+	stdout := *stderr
+	stdout.stream = TaskLogEventStdout
+	return &Logger{
+		Stderr: stderr,
+		Stdout: &stdout,
+	}
 }
 
 // runPass kicks off tasks that are in an executable state.
@@ -239,21 +251,12 @@ func (e *Executor) runPass() {
 
 			func(task *Task, execution *taskExecution) {
 				e.wg.Go(func() error {
-					logger, err := e.config.LogProvider()(task)
-					if err != nil {
-						// Default to stdout/stderr.
-						e.publishEvent(&TaskDiagnosticEvent{
-							simpleEvent: execution.simpleEvent(),
-							Error:       oops.Wrapf(err, "failed to initialize log provider"),
-						})
-					}
-
 					liveLogger, err := execution.liveLogger.Provider(task)
 					if err != nil {
 						panic(err)
 					}
 
-					logger = MergeLoggers(logger, liveLogger)
+					logger := MergeLoggers(liveLogger, e.provideEventLogger(task))
 
 					ctx := context.WithValue(execution.ctx, loggerKey{}, logger)
 
@@ -263,7 +266,7 @@ func (e *Executor) runPass() {
 
 					started := time.Now()
 
-					err = task.Run(ctx, e.shellRun)
+					err = task.Run(ctx, e.ShellRun)
 
 					if ctx.Err() == context.Canceled {
 						e.publishEvent(&TaskStoppedEvent{
