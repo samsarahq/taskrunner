@@ -266,7 +266,9 @@ func (e *Executor) runPass() {
 
 					started := time.Now()
 
-					err = task.Run(ctx, e.ShellRun)
+					if task.Run != nil {
+						err = task.Run(ctx, e.ShellRun)
+					}
 
 					if ctx.Err() == context.Canceled {
 						e.publishEvent(&TaskStoppedEvent{
