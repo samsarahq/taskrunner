@@ -34,6 +34,7 @@ type Runtime struct {
 	subscriptions   []func(events <-chan ExecutorEvent) error
 	onStartHooks    []func(ctx context.Context, executor *Executor) error
 	onStopHooks     []func(ctx context.Context, executor *Executor) error
+	registry        *Registry
 	executorOptions []ExecutorOption
 }
 
@@ -61,8 +62,8 @@ func ExecutorOptions(opts ...ExecutorOption) RunOption {
 	}
 }
 
-func Run(tasks []*Task, options ...RunOption) {
-	runtime := &Runtime{}
+func Run(options ...RunOption) {
+	runtime := &Runtime{registry: DefaultRegistry}
 	for _, option := range options {
 		option(runtime)
 	}
@@ -82,6 +83,8 @@ func Run(tasks []*Task, options ...RunOption) {
 	if err != nil {
 		log.Fatalf("config error: unable to read config:\n%v\n", err)
 	}
+
+	tasks := runtime.registry.Tasks()
 
 	if listTasks {
 		outputString := "Run specified tasks with `taskrunner taskname1 taskname2`\nTasks available:"
