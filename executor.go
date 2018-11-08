@@ -265,9 +265,11 @@ func (e *Executor) runPass() {
 					})
 
 					started := time.Now()
+					var duration time.Duration
 
 					if task.Run != nil {
 						err = task.Run(ctx, e.ShellRun)
+						duration = time.Since(started)
 					}
 
 					if ctx.Err() == context.Canceled {
@@ -283,7 +285,7 @@ func (e *Executor) runPass() {
 					} else {
 						e.publishEvent(&TaskCompletedEvent{
 							simpleEvent: execution.simpleEvent(),
-							Duration:    time.Since(started),
+							Duration:    duration,
 						})
 						execution.state = taskExecutionState_done
 					}
