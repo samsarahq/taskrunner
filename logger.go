@@ -2,10 +2,19 @@ package taskrunner
 
 import (
 	"bytes"
+	"context"
 	"io"
 
 	"github.com/samsarahq/thunder/reactive"
 )
+
+// LoggerFromContext gets the logger from the context.
+func LoggerFromContext(ctx context.Context) *Logger {
+	if logger, ok := ctx.Value(loggerKey{}).(*Logger); ok {
+		return logger
+	}
+	return nil
+}
 
 type loggerKey struct{}
 type LogProvider func(task *Task) (*Logger, error)

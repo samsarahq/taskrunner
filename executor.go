@@ -211,12 +211,10 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 func (e *Executor) ShellRun(ctx context.Context, command string, opts ...shell.RunOption) error {
 	options := []shell.RunOption{
 		func(r *interp.Runner) {
-			loggerI := ctx.Value(loggerKey{})
-			if loggerI == nil {
+			logger := LoggerFromContext(ctx)
+			if logger == nil {
 				return
 			}
-
-			logger := loggerI.(*Logger)
 
 			r.Stdout = logger.Stdout
 			r.Stderr = logger.Stderr

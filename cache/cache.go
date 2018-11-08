@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -104,7 +105,10 @@ func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.Shel
 	return func(ctx context.Context, shellRun shell.ShellRun) error {
 		if c.isFirstRun(task) && c.isValid(task) {
 			// report that the task wasn't run
-			return shellRun(ctx, `echo "no changes (cache)"`)
+			logger := taskrunner.LoggerFromContext(ctx)
+			if logger != nil {
+				fmt.Fprintln(logger.Stdout, "no changes (cache)")
+			}
 		}
 		return task.Run(ctx, shellRun)
 	}
