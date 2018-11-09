@@ -26,6 +26,9 @@ type Cache struct {
 	opts []shell.RunOption
 }
 
+// Ignore ignores the cache (useful for conditionally bypassing the cache).
+func (c *Cache) Ignore() { c.allDirty = true }
+
 func New(opts ...shell.RunOption) *Cache {
 	return &Cache{
 		ranOnce: make(map[*taskrunner.Task]bool),
