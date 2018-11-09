@@ -26,6 +26,9 @@ type Cache struct {
 	opts []shell.RunOption
 }
 
+// Ignore ignores the cache (useful for conditionally bypassing the cache).
+func (c *Cache) Ignore() { c.allDirty = true }
+
 func New(opts ...shell.RunOption) *Cache {
 	return &Cache{
 		ranOnce: make(map[*taskrunner.Task]bool),
@@ -108,6 +111,7 @@ func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.Shel
 			logger := taskrunner.LoggerFromContext(ctx)
 			if logger != nil {
 				fmt.Fprintln(logger.Stdout, "no changes (cache)")
+				return nil
 			}
 		}
 		return task.Run(ctx, shellRun)

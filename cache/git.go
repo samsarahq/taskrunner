@@ -46,6 +46,9 @@ func (g gitClient) uncomittedFiles(ctx context.Context) (newFiles []string, modi
 	}
 
 	for _, statusLine := range splitStdout(buffer) {
+		if len(strings.TrimSpace(statusLine)) < 4 {
+			continue
+		}
 		if strings.HasPrefix(statusLine, "??") {
 			newFiles = append(newFiles, statusLine[3:])
 		} else {

@@ -75,7 +75,11 @@ func option(logger *logger) func(*taskrunner.Runtime) {
 				case *taskrunner.TaskStartedEvent:
 					logger.Write(task, "Started")
 				case *taskrunner.TaskCompletedEvent:
-					logger.Writef(task, "Completed (%0.2fs)", float64(event.Duration)/float64(time.Second))
+					if event.Duration == 0 {
+						logger.Writef(task, "Completed")
+					} else {
+						logger.Writef(task, "Completed (%0.2fs)", float64(event.Duration)/float64(time.Second))
+					}
 				case *taskrunner.TaskFailedEvent:
 					logger.Writef(task, "Failed\n%v", event.Error)
 				case *taskrunner.TaskDiagnosticEvent:

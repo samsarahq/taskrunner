@@ -12,21 +12,10 @@ import (
 )
 
 var (
-	flags          = flag.NewFlagSet("taskrunner", 0)
 	configFile     string
 	nonInteractive bool
 	listTasks      bool
 )
-
-func init() {
-	flags.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: taskrunner [task...]\n")
-		flags.PrintDefaults()
-	}
-	flags.StringVar(&configFile, "config", "", "Configuration file to use")
-	flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode")
-	flags.BoolVar(&listTasks, "list", false, "List all tasks")
-}
 
 // Runtime represents the external interface of an Executor's runtime. It is how taskrunner
 // extensions can register themselves to taskrunner's lifecycle.
@@ -35,6 +24,26 @@ type Runtime struct {
 	onStartHooks    []func(ctx context.Context, executor *Executor) error
 	onStopHooks     []func(ctx context.Context, executor *Executor) error
 	executorOptions []ExecutorOption
+
+	registry *Registry
+	flags    *flag.FlagSet
+}
+
+func newRuntime() *Runtime {
+	r := &Runtime{
+		registry: DefaultRegistry,
+		flags:    flag.NewFlagSet("taskrunner", 0),
+	}
+
+	r.flags.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: taskrunner [task...]\n")
+		r.flags.PrintDefaults()
+	}
+	r.flags.StringVar(&configFile, "config", "", "Configuration file to use")
+	r.flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode")
+	r.flags.BoolVar(&listTasks, "list", false, "List all tasks")
+
+	return r
 }
 
 // OnStart is run after taskrunner has built up its task execution list.
@@ -53,6 +62,9 @@ func (r *Runtime) OnStop(f func(context.Context, *Executor) error) {
 	r.onStopHooks = append(r.onStopHooks, f)
 }
 
+// WithFlag allows for external registration of flags.
+func (r *Runtime) WithFlag(f func(flags *flag.FlagSet)) { f(r.flags) }
+
 type RunOption func(options *Runtime)
 
 func ExecutorOptions(opts ...ExecutorOption) RunOption {
@@ -61,13 +73,13 @@ func ExecutorOptions(opts ...ExecutorOption) RunOption {
 	}
 }
 
-func Run(tasks []*Task, options ...RunOption) {
-	runtime := &Runtime{}
+func Run(options ...RunOption) {
+	runtime := newRuntime()
 	for _, option := range options {
 		option(runtime)
 	}
 
-	if err := flags.Parse(os.Args[1:]); err != nil {
+	if err := runtime.flags.Parse(os.Args[1:]); err != nil {
 		return
 	}
 
@@ -83,6 +95,8 @@ func Run(tasks []*Task, options ...RunOption) {
 		log.Fatalf("config error: unable to read config:\n%v\n", err)
 	}
 
+	tasks := runtime.registry.Tasks()
+
 	if listTasks {
 		outputString := "Run specified tasks with `taskrunner taskname1 taskname2`\nTasks available:"
 		for _, task := range tasks {
@@ -97,9 +111,9 @@ func Run(tasks []*Task, options ...RunOption) {
 
 	desiredTasks := config.DesiredTasks
 	config.Watch = !nonInteractive
-	if len(flags.Args()) > 0 {
+	if len(runtime.flags.Args()) > 0 {
 		config.Watch = false
-		desiredTasks = flags.Args()
+		desiredTasks = runtime.flags.Args()
 	}
 
 	if len(tasks) == 0 {

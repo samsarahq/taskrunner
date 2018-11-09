@@ -166,33 +166,36 @@ func (b *buildBinder) shouldInvalidate(event taskrunner.InvalidationEvent) bool 
 // before running the task. If no task sources are specified, then
 // WrapWithGoBuild will automatically setup invalidation for the task according
 // to the import graph of the specified package.
-func (builder *GoBuilder) WrapWithGoBuild(task *taskrunner.Task, pkg string) *taskrunner.Task {
-	newTask := *task
+func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
+	return func(task *taskrunner.Task) *taskrunner.Task {
 
-	buildBinder := newBuildBinder(pkg)
-	newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
-		if err := builder.Build(ctx, shellRun, pkg); err != nil {
-			return err
+		newTask := *task
+
+		buildBinder := newBuildBinder(pkg)
+		newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
+			if err := builder.Build(ctx, shellRun, pkg); err != nil {
+				return err
+			}
+
+			if err := buildBinder.saveDependencies(ctx, shellRun); err != nil {
+				return err
+			}
+
+			if task.Run != nil {
+				return task.Run(ctx, shellRun)
+			}
+
+			return nil
 		}
 
-		if err := buildBinder.saveDependencies(ctx, shellRun); err != nil {
-			return err
+		newTask.ShouldInvalidate = func(event taskrunner.InvalidationEvent) bool {
+			delegated := true
+			if task.ShouldInvalidate != nil {
+				delegated = task.ShouldInvalidate(event)
+			}
+			return buildBinder.shouldInvalidate(event) && delegated
 		}
 
-		if task.Run != nil {
-			return task.Run(ctx, shellRun)
-		}
-
-		return nil
+		return &newTask
 	}
-
-	newTask.ShouldInvalidate = func(event taskrunner.InvalidationEvent) bool {
-		delegated := true
-		if task.ShouldInvalidate != nil {
-			delegated = task.ShouldInvalidate(event)
-		}
-		return buildBinder.shouldInvalidate(event) && delegated
-	}
-
-	return &newTask
 }
