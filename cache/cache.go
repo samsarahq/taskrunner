@@ -108,6 +108,7 @@ func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.Shel
 			logger := taskrunner.LoggerFromContext(ctx)
 			if logger != nil {
 				fmt.Fprintln(logger.Stdout, "no changes (cache)")
+				return nil
 			}
 		}
 		return task.Run(ctx, shellRun)
