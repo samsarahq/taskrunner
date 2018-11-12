@@ -7,6 +7,7 @@ import (
 
 	"github.com/samsarahq/go/oops"
 	"github.com/samsarahq/taskrunner/shell"
+	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 	"mvdan.cc/sh/interp"
 )
@@ -181,27 +182,30 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 
 	e.tasks = taskSet
 
+	var errors error
 	// Run all onStartHooks before starting, after the DAG has been created.
 	for _, hook := range runtime.onStartHooks {
 		if err := hook(ctx, e); err != nil {
-			return err
+			errors = multierr.Append(errors, err)
 		}
 	}
+	if errors != nil {
+		return errors
+	}
+
 	e.runPass()
 
 	// Wait on all tasks to exit before stopping.
-	if err := e.wg.Wait(); err != nil {
-		return err
-	}
+	errors = multierr.Append(errors, e.wg.Wait())
 
 	// Run all onStopHooks after stopping.
 	for _, hook := range runtime.onStopHooks {
 		if err := hook(ctx, e); err != nil {
-			return err
+			errors = multierr.Append(errors, err)
 		}
 	}
 
-	return nil
+	return errors
 }
 
 // ShellRun executes a shell.Run with some default options:
