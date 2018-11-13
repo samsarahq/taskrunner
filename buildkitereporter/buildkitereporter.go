@@ -127,6 +127,7 @@ func (r *reporter) upload(ctx context.Context, shellRun shell.ShellRun, tasks []
 	if failures == 0 {
 		return nil
 	}
+	fmt.Println("Uploading buildkite annotation")
 	return shellRun(
 		ctx,
 		"buildkite-agent annotate --style=error --context=taskrunner --append",

@@ -227,6 +227,18 @@
 			"revisionTime": "2018-10-09T18:43:15Z"
 		},
 		{
+			"checksumSHA1": "byl77NJm2QiR5tfeBzAf2QpeQUc=",
+			"path": "go.uber.org/atomic",
+			"revision": "8dc6146f7569370a472715e178d8ae31172ee6da",
+			"revisionTime": "2018-10-18T21:50:23Z"
+		},
+		{
+			"checksumSHA1": "HephvKOmm5xmOrCzhKEtcw7lqE8=",
+			"path": "go.uber.org/multierr",
+			"revision": "ddea229ff1dff9e6fe8a6c0344ac73b09e81fce5",
+			"revisionTime": "2018-01-22T17:25:45Z"
+		},
+		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "df8d4716b3472e4a531c33cedbe537dae921a1a9",
