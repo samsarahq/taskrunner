@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/samsarahq/taskrunner"
 	"github.com/samsarahq/taskrunner/shell"
@@ -17,11 +18,12 @@ const CachePath = ".cache/taskrunner"
 var CacheDir = path.Join(os.Getenv("HOME"), CachePath)
 
 type Cache struct {
-	ranOnce     map[*taskrunner.Task]bool
-	snapshotter *snapshotter
-	cacheFile   string
-	allDirty    bool
-	dirtyFiles  []string
+	ranOnce      map[*taskrunner.Task]bool
+	snapshotter  *snapshotter
+	cacheFile    string
+	allDirty     bool
+	dirtyFiles   []string
+	ranOnceMutex sync.Mutex
 
 	opts []shell.RunOption
 }
@@ -87,6 +89,8 @@ func (c *Cache) Finish(ctx context.Context) error {
 }
 
 func (c *Cache) isFirstRun(task *taskrunner.Task) bool {
+	c.ranOnceMutex.Lock()
+	defer c.ranOnceMutex.Unlock()
 	ran := c.ranOnce[task]
 	c.ranOnce[task] = true
 	return !ran
