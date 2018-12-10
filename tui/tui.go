@@ -268,7 +268,7 @@ func newTabWidget() *tabWidget {
 type logList struct {
 	sync.Mutex
 	tui.Widget
-	scroll *tui.ScrollArea
+	scroll *autoScrollArea
 	list   *tui.Box
 }
 
@@ -285,7 +285,7 @@ func (l *logList) Append(log string) {
 
 func newLogView() *logList {
 	history := tui.NewVBox()
-	scroll := tui.NewScrollArea(tui.NewPadder(1, 0, history))
+	scroll := newAutoScrollArea(tui.NewPadder(1, 0, history))
 	scroll.ScrollToBottom()
 	box := tui.NewVBox(scroll)
 	box.SetSizePolicy(tui.Expanding, tui.Expanding)
