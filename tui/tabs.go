@@ -154,7 +154,9 @@ func (l *logList) Append(log string) {
 	l.Lock()
 	defer l.Unlock()
 	log = strings.TrimSuffix(log, "\n")
-	l.list.Append(tui.NewLabel(log))
+	label := tui.NewLabel(log)
+	label.SetWordWrap(true)
+	l.list.Append(label)
 }
 
 func newLogView() *logList {
