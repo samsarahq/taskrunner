@@ -33,11 +33,15 @@ func (s *autoScrollArea) MinSizeHint() image.Point {
 
 // SizeHint returns the size hint of the underlying widget.
 func (s *autoScrollArea) SizeHint() image.Point {
-	return image.Pt(15, 8)
+	return s.Widget.SizeHint()
 }
 
 // Scroll shifts the views over the content.
 func (s *autoScrollArea) Scroll(dx, dy int) {
+	if !s.IsScrollFilled() {
+		return
+	}
+
 	s.topLeft.X += dx
 	s.topLeft.Y += dy
 
@@ -80,7 +84,10 @@ func (s *autoScrollArea) Draw(p *tui.Painter) {
 
 // Resize resizes the scroll area and the underlying widget.
 func (s *autoScrollArea) Resize(size image.Point) {
-	s.Widget.Resize(s.Widget.SizeHint())
+	image := s.Widget.SizeHint()
+	// Don't allow for horizontal scroll
+	image.X = size.X
+	s.Widget.Resize(image)
 	s.WidgetBase.Resize(size)
 
 	if s.autoscroll && s.IsScrollFilled() {
