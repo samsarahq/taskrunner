@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"syscall"
+	"time"
 
 	tui "github.com/marcusolsson/tui-go"
 	"github.com/samsarahq/taskrunner"
@@ -105,13 +106,32 @@ func (ui *UI) Subscribe(events <-chan taskrunner.ExecutorEvent) error {
 			ui.Update(func() {
 				tab.view.Append(ev.Message)
 			})
+		case *taskrunner.TaskInvalidatedEvent:
+			ui.Update(func() {
+				tab.view.Append(fmt.Sprintf("Invalidating for %d reasons:", len(ev.Reasons)))
+				for _, reason := range ev.Reasons {
+					tab.view.Append(fmt.Sprintf("- %s", reason.Description()))
+				}
+			})
 		case *taskrunner.TaskCompletedEvent:
 			ui.Update(func() {
-				tab.view.Append(fmt.Sprintf("Completed! (%d)", ev.Duration))
+				var msg string
+				if ev.Duration == 0 {
+					msg = "Completed"
+				} else {
+					msg = fmt.Sprintf("Completed (%0.2fs)", float64(ev.Duration)/float64(time.Second))
+				}
+				tab.view.Append(msg)
 			})
 		case *taskrunner.TaskFailedEvent:
 			ui.Update(func() {
-				tab.view.Append(fmt.Sprintf("Failed! (%v)", ev.Error))
+				tab.view.Append("Failed:")
+				tab.view.Append(ev.Error.Error())
+			})
+		case *taskrunner.TaskDiagnosticEvent:
+			ui.Update(func() {
+				tab.view.Append("Warning:")
+				tab.view.Append(ev.Error.Error())
 			})
 		case *taskrunner.TaskStoppedEvent:
 			ui.Update(func() {
