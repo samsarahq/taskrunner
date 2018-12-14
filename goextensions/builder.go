@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,11 +33,17 @@ func isStdLib(pkg string) bool {
 	return isStdLib
 }
 
+type request struct {
+	Package string
+	Logger  *taskrunner.Logger
+}
+
 // GoBuilder is a batcher for `go build` runs. It coalesces builds into 500ms batches.
 type GoBuilder struct {
 	packages map[string]struct{}
+	loggers  map[*taskrunner.Logger]struct{}
 	timer    *time.Timer
-	requests chan string
+	requests chan request
 
 	mu       sync.Mutex
 	doneCh   chan struct{}
@@ -44,25 +51,29 @@ type GoBuilder struct {
 	ctx      context.Context
 
 	err error
+
+	// Options:
+	LogToStdout bool
 }
 
 func NewGoBuilder() *GoBuilder {
 	timer := time.NewTimer(time.Second)
 	timer.Stop()
 
-	ch := make(chan string, 128)
-	packages := make(map[string]struct{})
+	ch := make(chan request, 128)
 	builder := &GoBuilder{
 		timer:    timer,
-		packages: packages,
+		packages: make(map[string]struct{}),
+		loggers:  make(map[*taskrunner.Logger]struct{}),
 		requests: ch,
 	}
 
 	go func() {
 		for {
 			select {
-			case pkg := <-ch:
-				builder.packages[pkg] = struct{}{}
+			case request := <-ch:
+				builder.packages[request.Package] = struct{}{}
+				builder.loggers[request.Logger] = struct{}{}
 				timer.Reset(time.Millisecond * 500)
 
 			case <-timer.C:
@@ -77,30 +88,50 @@ func NewGoBuilder() *GoBuilder {
 func (b *GoBuilder) build() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	packages := make([]string, 0, len(b.packages))
 	for pkg := range b.packages {
 		packages = append(packages, pkg)
 	}
 	pkgList := strings.Join(packages, " ")
-	b.packages = make(map[string]struct{})
 
-	stdout := &clireporter.PrefixedWriter{Writer: os.Stdout, Prefix: "go/build/dev", Separator: ">"}
+	var stdout, stderr io.Writer
+	if b.LogToStdout {
+		stdout = &clireporter.PrefixedWriter{Writer: os.Stdout, Prefix: "go/build/dev", Separator: ">"}
+		stderr = &clireporter.PrefixedWriter{Writer: os.Stderr, Prefix: "go/build/dev", Separator: ">"}
+	} else {
+		stdouts := make([]io.Writer, 0, len(b.loggers))
+		stderrs := make([]io.Writer, 0, len(b.loggers))
+		for l := range b.loggers {
+			stdouts = append(stdouts, l.Stdout)
+			stderrs = append(stderrs, l.Stdout)
+		}
+		stdout = io.MultiWriter(stdouts...)
+		stderr = io.MultiWriter(stderrs...)
+	}
+
 	fmt.Fprintf(stdout, "building packages: %s", pkgList)
-
 	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), func(r *interp.Runner) {
 		r.Stdout = stdout
-		r.Stderr = &clireporter.PrefixedWriter{Writer: os.Stderr, Prefix: "go/build/dev", Separator: ">"}
+		r.Stderr = stderr
 	})
-	fmt.Fprintln(stdout, "Completed")
+	fmt.Fprintln(stdout, "done building packages")
 
 	close(b.doneCh)
 	b.doneCh = nil
+
+	// Clear the package and logger list.
+	b.packages = make(map[string]struct{})
+	b.loggers = make(map[*taskrunner.Logger]struct{})
 }
 
 // Build schedules a go build and waits for its completion. Note that since builds are batched,
 // the returned error may or may not be related to the requested package.
 func (b *GoBuilder) Build(ctx context.Context, shellRun shell.ShellRun, pkg string) error {
-	b.requests <- pkg
+	b.requests <- request{
+		Package: pkg,
+		Logger:  taskrunner.LoggerFromContext(ctx),
+	}
 
 	b.mu.Lock()
 	b.shellRun = shellRun
