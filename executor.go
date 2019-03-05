@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -43,6 +44,8 @@ type Executor struct {
 	// eventsCh keeps track of subscribers to events for this executor.
 	eventsChs []chan ExecutorEvent
 }
+
+var errUndefinedTaskName = errors.New("undefined task name")
 
 type ExecutorOption func(*Executor)
 
@@ -175,7 +178,7 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 	for _, taskName := range taskNames {
 		task := e.taskRegistry[taskName]
 		if task == nil {
-			return oops.Errorf("task %s is not defined", taskName)
+			return oops.Wrapf(errUndefinedTaskName, "task %s is not defined", taskName)
 		}
 		taskSet.add(ctx, task)
 	}
