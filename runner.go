@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/samsarahq/go/oops"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -138,10 +139,12 @@ func Run(options ...RunOption) {
 		err := executor.Run(ctx, desiredTasks, runtime)
 
 		// We only care about propagating errors up to the errgroup
-		// if we were not in watch mode.
-		if !config.Watch {
+		// if it's a well-known executor error, or the underlying task failed AND
+		// we're not in watch mode.
+		if oops.Cause(err) == errUndefinedTaskName || !config.Watch {
 			return err
 		}
+
 		return nil
 	})
 
