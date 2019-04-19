@@ -14,8 +14,8 @@ import (
 
 var (
 	configFile     string
-	nonInteractive bool
 	listTasks      bool
+	watch bool
 )
 
 // Runtime represents the external interface of an Executor's runtime. It is how taskrunner
@@ -41,8 +41,8 @@ func newRuntime() *Runtime {
 		r.flags.PrintDefaults()
 	}
 	r.flags.StringVar(&configFile, "config", "", "Configuration file to use")
-	r.flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode")
 	r.flags.BoolVar(&listTasks, "list", false, "List all tasks")
+	r.flags.BoolVar(&watch, "watch", false, "Watch mode.")
 
 	return r
 }
@@ -111,9 +111,12 @@ func Run(options ...RunOption) {
 	executor := NewExecutor(config, tasks, runtime.executorOptions...)
 
 	desiredTasks := config.DesiredTasks
-	config.Watch = !nonInteractive
+	config.Watch = true
 	if len(runtime.flags.Args()) > 0 {
-		config.Watch = false
+		// If tasks are specified, default to false for watch mode, unless flag is passed.
+		if !watch {
+			cofig.Watch = false
+		}
 		desiredTasks = runtime.flags.Args()
 	}
 
