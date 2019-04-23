@@ -129,7 +129,7 @@ func (w *INotifyWatcher) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	// XXX: hack: ignore node_modules because inotify has a 8192 limit by default.
-	cmd := exec.CommandContext(ctx, "inotifywait", "-q", "-m", "@./node_modules", "@./integration/node_modules", "@./mobile/SamsaraDriver/node_modules", "-r", "-e", "modify", "-e", "create", "-e", "delete", "-e", "move", w.directory)
+	cmd := exec.CommandContext(ctx, "inotifywait", "-q", "-m", "@./node_modules", "@./mobile/Troy/node_modules", "@./integration/canary/node_modules", "@./mobile/SamsaraDriver/node_modules", "-r", "-e", "modify", "-e", "create", "-e", "delete", "-e", "move", w.directory)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
