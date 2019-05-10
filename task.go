@@ -8,6 +8,10 @@ import (
 
 type Task struct {
 	Name string
+
+	// A one or two sentence description of what the task does
+	Description string
+
 	// XXX: Pass files in so that task can decide to do less work, i.e. if
 	// you change a go file we can run go fmt on just that file.
 

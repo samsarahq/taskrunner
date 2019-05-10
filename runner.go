@@ -17,6 +17,7 @@ var (
 	nonInteractive bool
 	listTasks      bool
 	watch          bool
+	describeTasks  bool
 )
 
 // Runtime represents the external interface of an Executor's runtime. It is how taskrunner
@@ -45,6 +46,7 @@ func newRuntime() *Runtime {
 	r.flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode (only applies when running the default set of tasks)")
 	r.flags.BoolVar(&listTasks, "list", false, "List all tasks")
 	r.flags.BoolVar(&watch, "watch", false, "Run in watch mode (only applies when passing custom tasks)")
+	r.flags.BoolVar(&describeTasks, "describe", false, "Describe all tasks")
 
 	return r
 }
@@ -104,6 +106,15 @@ func Run(options ...RunOption) {
 		outputString := "Run specified tasks with `taskrunner taskname1 taskname2`\nTasks available:"
 		for _, task := range tasks {
 			outputString = outputString + "\n\t" + task.Name
+		}
+		fmt.Println(outputString)
+		return
+	}
+
+	if describeTasks {
+		var outputString string
+		for _, task := range tasks {
+			outputString = fmt.Sprintf("%s\n\t%s\t %s", outputString, task.Name, task.Description)
 		}
 		fmt.Println(outputString)
 		return
