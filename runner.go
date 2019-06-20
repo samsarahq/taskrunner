@@ -47,6 +47,7 @@ func newRuntime() *Runtime {
 	r.flags.BoolVar(&listTasks, "list", false, "List all tasks")
 	r.flags.BoolVar(&watch, "watch", false, "Run in watch mode (only applies when passing custom tasks)")
 	r.flags.BoolVar(&describeTasks, "describe", false, "Describe all tasks")
+	r.flags.BoolVar(&describeTasks, "desc", false, "Shorthand for -describe")
 
 	return r
 }
