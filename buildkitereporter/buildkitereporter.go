@@ -29,6 +29,11 @@ func WithMaxLines(maxLines int) ReporterOption {
 	return func(r *reporter) { r.maxLines = maxLines }
 }
 
+// WithStreams sets which log streams to listen to (default: stderr).
+func WithStreams(streams ...taskrunner.TaskLogEventStream) ReporterOption {
+	return func(r *reporter) { r.streams = streams }
+}
+
 // WithUpload is mutually exclusive vs WithPath. Uploads the buildkite annotation directly.
 func WithUpload(r *reporter) { r.uploadDirectly = true }
 
@@ -43,8 +48,11 @@ func Option(opts ...ReporterOption) func(*taskrunner.Runtime) {
 			for ev := range events {
 				switch event := ev.(type) {
 				case *taskrunner.TaskLogEvent:
-					if event.Stream == taskrunner.TaskLogEventStderr {
-						reporter.AppendLogs(event.TaskHandler().Definition(), event.Message)
+					// Append log to stream if its one of the ones we're listening to.
+					for _, stream := range reporter.streams {
+						if stream == event.Stream {
+							reporter.AppendLogs(event.TaskHandler().Definition(), event.Message)
+						}
 					}
 				}
 			}
@@ -59,6 +67,7 @@ type reporter struct {
 	uploadDirectly bool
 	maxLines       int
 	stderrs        map[*taskrunner.Task][]string
+	streams        []taskrunner.TaskLogEventStream
 }
 
 func newReporter() *reporter {
@@ -66,6 +75,7 @@ func newReporter() *reporter {
 		maxLines: 50,
 		path:     "taskrunner.annotation.md",
 		stderrs:  make(map[*taskrunner.Task][]string),
+		streams:  []taskrunner.TaskLogEventStream{taskrunner.TaskLogEventStderr},
 	}
 }
 
