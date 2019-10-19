@@ -98,6 +98,11 @@ func (config *Config) WorkingDir() string {
 		log.Fatalf("config error: unable to find config file (%s):\n%v\n", config.configPath, err)
 	}
 
+	configPath, err = filepath.EvalSymlinks(configPath)
+	if err != nil {
+		log.Fatalf("config error: unable to remove symbolic links for filepath (%s):\n%v\n", configPath, err)
+	}
+
 	return filepath.Join(filepath.Dir(configPath), config.Path)
 }
 
