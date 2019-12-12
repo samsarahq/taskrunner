@@ -1,6 +1,7 @@
 package clireporter
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -82,7 +83,20 @@ func (w *PrefixedWriter) Write(p []byte) (n int, err error) {
 	h.Write([]byte(w.Prefix))
 	c := colors[int(h.Sum32())%len(colors)]
 
-	lines := strings.Split(strings.TrimRight(string(p), "\n"), "\n")
+	var jsonObj interface{}
+	err = json.Unmarshal([]byte(p), &jsonObj)
+	if err == nil {
+		jsonData, err := json.MarshalIndent(jsonObj, "", "  ")
+		if err == nil {
+			// Treat output as indented JSON
+			p = jsonData
+		}
+	}
+
+	unescaped := strings.ReplaceAll(strings.TrimRight(string(p), "\n"), "\\n", "\n")
+	unescaped = strings.ReplaceAll(unescaped, "\\t", "  ")
+
+	lines := strings.Split(unescaped, "\n")
 	prefixed := make([]string, len(lines))
 	for i, line := range lines {
 		prefixed[i] = fmt.Sprintf("%s %s", fmt.Sprintf("%s %s", color.New(c).Sprint(leftPad(w.Prefix, w.Padding)), separator), line)
