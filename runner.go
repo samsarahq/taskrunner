@@ -18,6 +18,7 @@ var (
 	listTasks      bool
 	watch          bool
 	describeTasks  bool
+	withFlags 		 string
 )
 
 // Runtime represents the external interface of an Executor's runtime. It is how taskrunner
@@ -47,6 +48,7 @@ func newRuntime() *Runtime {
 	r.flags.BoolVar(&listTasks, "list", false, "List all tasks")
 	r.flags.BoolVar(&watch, "watch", false, "Run in watch mode (only applies when passing custom tasks)")
 	r.flags.BoolVar(&describeTasks, "describe", false, "Describe all tasks")
+	r.flags.StringVar(&withFlags, "withFlags", "", "Provide flags to pass to specified task. Only used when running a single task.")
 
 	return r
 }
@@ -135,7 +137,13 @@ func Run(options ...RunOption) {
 	if len(tasks) == 0 {
 		log.Fatalln("No tasks specified")
 	}
+
+	var passThroughFlags *string
+	if len(desiredTasks) == 1 && withFlags != ""{
+		passThroughFlags = &withFlags
+	}
 	log.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
+	log.Println("Flags for task: ", passThroughFlags)
 	log.Printf("Watch mode: %t", config.Watch)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -151,7 +159,7 @@ func Run(options ...RunOption) {
 	}
 
 	g.Go(func() error {
-		err := executor.Run(ctx, desiredTasks, runtime)
+		err := executor.Run(ctx, desiredTasks, runtime, passThroughFlags)
 
 		// We only care about propagating errors up to the errgroup
 		// if it's a well-known executor error, or the underlying task failed AND
