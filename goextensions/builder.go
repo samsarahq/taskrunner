@@ -203,7 +203,7 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 		newTask := *task
 
 		buildBinder := newBuildBinder(pkg)
-		newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
+		newTask.Run = func(ctx context.Context, shellRun shell.ShellRun, flags *string) error {
 			if err := builder.Build(ctx, shellRun, pkg); err != nil {
 				return err
 			}
@@ -213,7 +213,7 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 			}
 
 			if task.Run != nil {
-				return task.Run(ctx, shellRun)
+				return task.Run(ctx, shellRun, flags)
 			}
 
 			return nil
