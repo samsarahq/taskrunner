@@ -161,7 +161,7 @@ func (e *Executor) Invalidate(task *Task, event InvalidationEvent) {
 	e.invalidationCh <- struct{}{}
 }
 
-func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime) error {
+func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime, flagString *string) error {
 	e.ctx = ctx
 	defer func() {
 		for _, ch := range e.eventsChs {
@@ -180,6 +180,7 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 		if task == nil {
 			return oops.Wrapf(errUndefinedTaskName, "task %s is not defined", taskName)
 		}
+		task.Flags = flagString
 		taskSet.add(ctx, task)
 	}
 
@@ -275,7 +276,7 @@ func (e *Executor) runPass() {
 					var duration time.Duration
 
 					if task.Run != nil {
-						err = task.Run(ctx, e.ShellRun)
+						err = task.Run(ctx, e.ShellRun, task.Flags)
 						duration = time.Since(started)
 					}
 
