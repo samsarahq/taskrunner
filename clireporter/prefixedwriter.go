@@ -1,6 +1,7 @@
 package clireporter
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -13,7 +14,7 @@ import (
 
 type logger struct {
 	w         io.Writer
-	writers   map[*taskrunner.Task]*PrefixedWriter
+	writers   map[*taskrunner.Task]io.Writer
 	separator string
 	padding   int
 }
@@ -21,7 +22,7 @@ type logger struct {
 func newLogger(w io.Writer) *logger {
 	return &logger{
 		w:       w,
-		writers: make(map[*taskrunner.Task]*PrefixedWriter),
+		writers: make(map[*taskrunner.Task]io.Writer),
 		padding: defaultPadding,
 	}
 }
@@ -47,11 +48,13 @@ func (l *logger) registerTasks(handlers []*taskrunner.TaskHandler) {
 	}
 
 	for _, task := range tasks {
-		l.writers[task] = &PrefixedWriter{
-			Writer:    l.w,
-			Prefix:    task.Name,
-			Padding:   longestTaskNameLength,
-			Separator: l.separator,
+		l.writers[task] = &LineBufferedWriter{
+			Writer: bufio.NewWriter(&PrefixedWriter{
+				Writer:    l.w,
+				Prefix:    task.Name,
+				Padding:   longestTaskNameLength,
+				Separator: l.separator,
+			}),
 		}
 	}
 }
