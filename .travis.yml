@@ -5,8 +5,13 @@ go:
 before_install:
   - go get
   - go get github.com/mattn/goveralls
+  - go get github.com/zorkian/go-datadog-api@v2.8.1
 
 script: "go test -v ./... -coverprofile=coverage.out -covermode=atomic -bench=./..."
+
+env:
+  global:
+    - GO111MODULE=on
 
 after_success:
   - "$GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken=$COVERALLS_TOKEN"
