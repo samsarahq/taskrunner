@@ -68,24 +68,24 @@ func option(logger *logger) func(*taskrunner.Runtime) {
 				case *taskrunner.TaskLogEvent:
 					logger.Write(task, event.Message)
 				case *taskrunner.TaskInvalidatedEvent:
-					logger.Writef(task, "Invalidating %s for %d reasons:", event.TaskHandler().Definition().Name, len(event.Reasons))
+					logger.Writef(task, "Invalidating %s for %d reasons:\n", event.TaskHandler().Definition().Name, len(event.Reasons))
 					for _, reason := range event.Reasons {
-						logger.Write(task, fmt.Sprintf("- %s", reason.Description()))
+						logger.Write(task, fmt.Sprintf("- %s\n", reason.Description()))
 					}
 				case *taskrunner.TaskStartedEvent:
-					logger.Write(task, "Started")
+					logger.Write(task, "Started\n")
 				case *taskrunner.TaskCompletedEvent:
 					if event.Duration == 0 {
-						logger.Writef(task, "Completed")
+						logger.Writef(task, "Completed\n")
 					} else {
-						logger.Writef(task, "Completed (%0.2fs)", float64(event.Duration)/float64(time.Second))
+						logger.Writef(task, "Completed (%0.2fs)\n", float64(event.Duration)/float64(time.Second))
 					}
 				case *taskrunner.TaskFailedEvent:
-					logger.Writef(task, "Failed\n%v", event.Error)
+					logger.Writef(task, "Failed\n%v\n", event.Error)
 				case *taskrunner.TaskDiagnosticEvent:
-					logger.Writef(task, "Warning: %s", event.Error.Error())
+					logger.Writef(task, "Warning: %s\n", event.Error.Error())
 				case *taskrunner.TaskStoppedEvent:
-					logger.Write(task, "Stopped")
+					logger.Write(task, "Stopped\n")
 				}
 			}
 
