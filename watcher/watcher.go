@@ -147,23 +147,30 @@ func (w *INotifyWatcher) Run(ctx context.Context) error {
 				return oops.Wrapf(err, "filepath.Rel: %s, %s, %s", w.directory, line[0], line[2])
 			}
 
-			eventFlag := map[string]NumericEventFlag{
-				"ATTRIB":    NumericEventFlagAttributeModified,
-				"CREATE":    NumericEventFlagCreated,
-				"DELETE":    NumericEventFlagRemoved,
-				"MOVED_TO":   NumericEventFlagMovedTo,
-				"MOVED_FROM": NumericEventFlagMovedFrom,
-				"MODIFY":    NumericEventFlagUpdated,
-			}[line[1]]
+			// inotifywait can pass back multple events at once, so parse them individually
+			events := strings.Split(line[1], ",")
 
-			if eventFlag == NumericEventFlagInvalid {
-				return oops.Wrapf(err, "unknown inotifywait event: %s", line[1])
-			}
+			for _, event := range events {
+				eventFlag := map[string]NumericEventFlag{
+					"ATTRIB":     NumericEventFlagAttributeModified,
+					"CREATE":     NumericEventFlagCreated,
+					"DELETE":     NumericEventFlagRemoved,
+					"MOVED_TO":   NumericEventFlagMovedTo,
+					"MOVED_FROM": NumericEventFlagMovedFrom,
+					"MODIFY":     NumericEventFlagUpdated,
+				}[event]
 
-			w.eventsCh <- WatchEvent{
-				ReceivedAt:       time.Now(),
-				Flags:            eventFlag,
-				RelativeFilename: relFilename,
+				if eventFlag == NumericEventFlagInvalid {
+					// ignore event flags we don't anticipate, inotifywait can pass back events like "DELETE,ISDIR" where
+					// ISDIR isn't a separate real event we care about, so we can ignore it here
+					continue
+				}
+
+				w.eventsCh <- WatchEvent{
+					ReceivedAt:       time.Now(),
+					Flags:            eventFlag,
+					RelativeFilename: relFilename,
+				}
 			}
 		}
 		return oops.Wrapf(scanner.Err(), "scanner.Err()")
