@@ -8,6 +8,7 @@ import (
 
 	"github.com/samsarahq/go/oops"
 	"github.com/samsarahq/taskrunner/shell"
+	"github.com/samsarahq/taskrunner/watcher"
 	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 	"mvdan.cc/sh/interp"
@@ -43,11 +44,24 @@ type Executor struct {
 
 	// eventsCh keeps track of subscribers to events for this executor.
 	eventsChs []chan ExecutorEvent
+
+	// watcherEnhancers are enhancer functions to replace the default watcher.
+	watcherEnhancers []WatcherEnhancer
 }
+
+// WatcherEnhancer is a function to modify or replace a watcher.
+type WatcherEnhancer func(watcher.Watcher) watcher.Watcher
 
 var errUndefinedTaskName = errors.New("undefined task name")
 
 type ExecutorOption func(*Executor)
+
+// WithWatcherEnhancer adds a watcher enhancer to run when creating the enhancer.
+func WithWatcherEnhancer(we WatcherEnhancer) ExecutorOption {
+	return func(e *Executor) {
+		e.watcherEnhancers = append(e.watcherEnhancers, we)
+	}
+}
 
 func ShellRunOptions(opts ...shell.RunOption) ExecutorOption {
 	return func(e *Executor) {
