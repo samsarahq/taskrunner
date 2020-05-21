@@ -28,7 +28,7 @@ func (m *mockFn) Reset() {
 }
 
 func TestExecutorSimple(t *testing.T) {
-	config := &taskrunner.Config{LogMode: "stdout"}
+	config := &taskrunner.Config{}
 	mockA := &mockFn{}
 	mockB := &mockFn{}
 
@@ -109,7 +109,7 @@ func consumeUntil(t *testing.T, events <-chan taskrunner.ExecutorEvent, kind tas
 }
 
 func TestExecutorInvalidations(t *testing.T) {
-	config := &taskrunner.Config{LogMode: "stdout", Watch: true}
+	config := &taskrunner.Config{Watch: true}
 	mockA := &mockFn{}
 	mockB := &mockFn{}
 
