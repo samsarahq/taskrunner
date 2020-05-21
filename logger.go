@@ -24,12 +24,15 @@ type Logger struct {
 	Stderr io.Writer
 }
 
+// eventLogger is an io.Writer that publishes to the taskrunner
+// executor-level logger.
 type eventLogger struct {
 	executor *Executor
 	task     *Task
 	stream   TaskLogEventStream
 }
 
+// Write implements io.Writer.
 func (l *eventLogger) Write(p []byte) (int, error) {
 	l.executor.publishEvent(&TaskLogEvent{
 		simpleEvent: l.executor.taskExecution(l.task).simpleEvent(),
