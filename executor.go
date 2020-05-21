@@ -272,12 +272,7 @@ func (e *Executor) runPass() {
 
 			func(task *Task, execution *taskExecution) {
 				e.wg.Go(func() error {
-					liveLogger, err := execution.liveLogger.Provider(task)
-					if err != nil {
-						panic(err)
-					}
-
-					logger := MergeLoggers(liveLogger, e.provideEventLogger(task))
+					logger := e.provideEventLogger(task)
 
 					ctx := context.WithValue(execution.ctx, loggerKey{}, logger)
 
@@ -287,6 +282,7 @@ func (e *Executor) runPass() {
 
 					started := time.Now()
 					var duration time.Duration
+					var err error
 
 					if task.Run != nil {
 						err = task.Run(ctx, e.ShellRun)

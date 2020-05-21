@@ -1,6 +1,7 @@
 package gqltaskrunner
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"net/http"
@@ -21,11 +22,13 @@ type Server struct {
 	Executor    *taskrunner.Executor
 	Tasks       []*taskrunner.TaskHandler
 	Broadcaster *Broadcaster
+	LiveLoggers map[string]*LiveLogger
 }
 
-func NewServer(executor *taskrunner.Executor) *Server {
+func NewServer(executor *taskrunner.Executor, liveLoggers map[string]*LiveLogger) *Server {
 	return &Server{
-		Executor: executor,
+		Executor:    executor,
+		LiveLoggers: liveLoggers,
 	}
 }
 
@@ -117,12 +120,13 @@ func (s *Server) registerTaskHandler(schema *schemabuilder.Schema) {
 	object.FieldFunc("logs", func(ctx context.Context, task *taskrunner.TaskHandler, args struct {
 		Html *bool
 	}) string {
-		reactive.AddDependency(ctx, task.LiveLogger().Resource, nil)
+		logger := s.LiveLoggers[task.Definition().Name]
+		reactive.AddDependency(ctx, logger.Resource, nil)
 
 		if args.Html != nil && *args.Html {
-			return string(terminal.Render(task.LiveLogger().Logs.Bytes()))
+			return string(terminal.Render(logger.Logs.Bytes()))
 		}
-		return task.LiveLogger().Logs.String()
+		return logger.Logs.String()
 	})
 }
 
@@ -162,6 +166,36 @@ func (server *Server) Run(ctx context.Context) error {
 	return nil
 }
 
+// Option starts a graphql server as part of taskrunner.
+func Option(r *taskrunner.Runtime) {
+	loggers := make(map[string]*LiveLogger)
+
+	r.OnStart(func(ctx context.Context, e *taskrunner.Executor) error {
+		server := NewServer(e, loggers)
+		for _, task := range e.Tasks() {
+			loggers[task.Definition().Name] = NewLiveLogger()
+		}
+
+		return server.Run(ctx)
+	})
+
+	r.Subscribe(func(events <-chan taskrunner.ExecutorEvent) error {
+		for event := range events {
+			var logger *LiveLogger
+
+			switch event := event.(type) {
+			case *taskrunner.TaskLogEvent:
+				if handler := event.TaskHandler(); handler != nil {
+					logger = loggers[handler.Definition().Name]
+				}
+				logger.Write([]byte(event.Message))
+			}
+		}
+
+		return nil
+	})
+}
+
 func (s *Server) handler(schema *graphql.Schema) http.Handler {
 	upgrader := &websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -181,4 +215,22 @@ func (s *Server) handler(schema *graphql.Schema) http.Handler {
 
 		graphql.CreateConnection(r.Context(), socket, schema, graphql.WithMinRerunInterval(time.Millisecond*10))
 	})
+}
+
+type LiveLogger struct {
+	Logs     *bytes.Buffer
+	Resource *reactive.Resource
+}
+
+func NewLiveLogger() *LiveLogger {
+	return &LiveLogger{
+		Logs:     new(bytes.Buffer),
+		Resource: reactive.NewResource(),
+	}
+}
+
+func (l *LiveLogger) Write(p []byte) (int, error) {
+	_, err := l.Logs.Write(p)
+	l.Resource.Strobe()
+	return len(p), err
 }

@@ -42,10 +42,6 @@ func (h *TaskHandler) State() TaskHandlerExecutionState {
 	return TaskHandlerExecutionStateMap[h.execution.state]
 }
 
-func (h *TaskHandler) LiveLogger() *LiveLogger {
-	return h.execution.liveLogger
-}
-
 func (e *Executor) Tasks() []*TaskHandler {
 	handlers := make([]*TaskHandler, len(e.tasks))
 	var i int
