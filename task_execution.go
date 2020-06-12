@@ -30,8 +30,6 @@ type taskExecution struct {
 	dependents   []*taskExecution
 
 	pendingInvalidations map[InvalidationEvent]struct{}
-
-	liveLogger *LiveLogger
 }
 
 func (e *taskExecution) simpleEvent() *simpleEvent {
@@ -112,7 +110,6 @@ func (s taskSet) add(executionCtx context.Context, task *Task) (*taskExecution, 
 		state:                taskExecutionState_invalid,
 		terminalCh:           make(chan struct{}, 1),
 		pendingInvalidations: make(map[InvalidationEvent]struct{}),
-		liveLogger:           NewLiveLogger(),
 	}
 
 	var dependencies []*taskExecution

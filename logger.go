@@ -1,11 +1,8 @@
 package taskrunner
 
 import (
-	"bytes"
 	"context"
 	"io"
-
-	"github.com/samsarahq/thunder/reactive"
 )
 
 // LoggerFromContext gets the logger from the context.
@@ -40,37 +37,4 @@ func (l *eventLogger) Write(p []byte) (int, error) {
 		Stream:      l.stream,
 	})
 	return len(p), nil
-}
-
-type LiveLogger struct {
-	Logs     *bytes.Buffer
-	Resource *reactive.Resource
-}
-
-func NewLiveLogger() *LiveLogger {
-	return &LiveLogger{
-		Logs:     new(bytes.Buffer),
-		Resource: reactive.NewResource(),
-	}
-}
-
-func (l *LiveLogger) Provider(task *Task) (*Logger, error) {
-	return &Logger{l, l}, nil
-}
-
-func (l *LiveLogger) Write(p []byte) (int, error) {
-	_, err := l.Logs.Write(p)
-	l.Resource.Strobe()
-	return len(p), err
-}
-
-func MergeLoggers(loggers ...*Logger) *Logger {
-	var stdouts []io.Writer
-	var stderrs []io.Writer
-	for _, logger := range loggers {
-		stdouts = append(stdouts, logger.Stdout)
-		stderrs = append(stderrs, logger.Stderr)
-	}
-
-	return &Logger{io.MultiWriter(stdouts...), io.MultiWriter(stderrs...)}
 }
