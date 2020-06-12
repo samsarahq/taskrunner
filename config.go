@@ -10,14 +10,6 @@ import (
 	"github.com/samsarahq/go/oops"
 )
 
-type LogMode string
-
-const (
-	LogMode_Stdout         LogMode = "stdout"
-	LogMode_LogfilesAppend         = "logfiles-append"
-	LogMode_LogfilesByDate         = "logfiles-bydate"
-)
-
 type Config struct {
 	// configPath is the path to this configuration file, relative to the current working directory.
 	configPath string
@@ -27,8 +19,6 @@ type Config struct {
 	Path string `json:"path"`
 
 	DesiredTasks []string `json:"desiredTasks"`
-
-	LogMode LogMode `json:"logMode"`
 }
 
 func ReadUserConfig() (*Config, error) {
@@ -109,14 +99,6 @@ func (config *Config) WorkingDir() string {
 func (config *Config) validate() error {
 	if config.Path == "" {
 		return oops.Errorf("must specify path: %s", config.configPath)
-	}
-
-	if config.LogMode == "" {
-		config.LogMode = "stdout"
-	}
-
-	if config.LogMode != LogMode_Stdout && config.LogMode != LogMode_LogfilesAppend && config.LogMode != LogMode_LogfilesByDate {
-		return oops.Errorf("must specify valid logmode: %s", config.configPath)
 	}
 
 	return nil
