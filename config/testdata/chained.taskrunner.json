@@ -1,0 +1,4 @@
+{
+  "extends": "./extension.taskrunner.json",
+  "desiredTasks": ["quirky"]
+}

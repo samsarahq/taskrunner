@@ -3,6 +3,10 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
+    "extends": {
+      "type": "string",
+      "description": "Configuration file to extend, relative to this file."
+    },
     "desiredTasks": {
       "type": "array",
       "items": {
@@ -20,5 +24,6 @@
       "description": "Where to send task logs."
     }
   },
-  "required": ["desiredTasks", "path"]
+  "required": ["desiredTasks"],
+  "oneOf": [{ "required": ["path"] }, { "required": ["extends"] }]
 }

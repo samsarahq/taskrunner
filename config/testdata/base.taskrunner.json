@@ -1,0 +1,4 @@
+{
+  "path": "./hello",
+  "desiredTasks": ["basic"]
+}
