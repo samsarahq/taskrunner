@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/samsarahq/go/oops"
+	"github.com/samsarahq/taskrunner/config"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -88,12 +89,12 @@ func Run(options ...RunOption) {
 		return
 	}
 
-	var config *Config
+	var c *config.Config
 	var err error
 	if configFile == "" {
-		config, err = ReadUserConfig()
+		c, err = config.ReadDefaultConfig()
 	} else {
-		config, err = ReadConfig(configFile)
+		c, err = config.ReadConfig(configFile)
 	}
 
 	if err != nil {
@@ -120,23 +121,24 @@ func Run(options ...RunOption) {
 		return
 	}
 
-	log.Println("Using config", config.ConfigFilePath())
-	executor := NewExecutor(config, tasks, runtime.executorOptions...)
+	log.Println("Using config", c.ConfigPath)
+	executor := NewExecutor(c, tasks, runtime.executorOptions...)
 
 	var desiredTasks []string
+	var watchMode bool
 	if len(runtime.flags.Args()) == 0 {
-		desiredTasks = config.DesiredTasks
-		config.Watch = !nonInteractive
+		desiredTasks = c.DesiredTasks
+		watchMode = !nonInteractive
 	} else {
 		desiredTasks = runtime.flags.Args()
-		config.Watch = watch
+		watchMode = watch
 	}
 
 	if len(tasks) == 0 {
 		log.Fatalln("No tasks specified")
 	}
 	log.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
-	log.Printf("Watch mode: %t", config.Watch)
+	log.Printf("Watch mode: %t", watchMode)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	onInterruptSignal(cancel)
@@ -156,7 +158,7 @@ func Run(options ...RunOption) {
 		// We only care about propagating errors up to the errgroup
 		// if it's a well-known executor error, or the underlying task failed AND
 		// we're not in watch mode.
-		if oops.Cause(err) == errUndefinedTaskName || !config.Watch {
+		if oops.Cause(err) == errUndefinedTaskName || !watchMode {
 			return err
 		}
 

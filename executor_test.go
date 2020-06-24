@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/samsarahq/taskrunner"
+	"github.com/samsarahq/taskrunner/config"
 	"github.com/samsarahq/taskrunner/shell"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,7 +29,7 @@ func (m *mockFn) Reset() {
 }
 
 func TestExecutorSimple(t *testing.T) {
-	config := &taskrunner.Config{}
+	config := &config.Config{}
 	mockA := &mockFn{}
 	mockB := &mockFn{}
 
@@ -109,7 +110,7 @@ func consumeUntil(t *testing.T, events <-chan taskrunner.ExecutorEvent, kind tas
 }
 
 func TestExecutorInvalidations(t *testing.T) {
-	config := &taskrunner.Config{Watch: true}
+	config := &config.Config{}
 	mockA := &mockFn{}
 	mockB := &mockFn{}
 
@@ -139,7 +140,7 @@ func TestExecutorInvalidations(t *testing.T) {
 		{
 			"dependency invalidated",
 			func(t *testing.T) {
-				executor := taskrunner.NewExecutor(config, tasks)
+				executor := taskrunner.NewExecutor(config, tasks, taskrunner.WithWatchMode(true))
 				ctx, cancel := context.WithCancel(context.Background())
 				events := executor.Subscribe()
 
