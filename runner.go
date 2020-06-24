@@ -122,8 +122,6 @@ func Run(options ...RunOption) {
 	}
 
 	log.Println("Using config", c.ConfigPath)
-	executor := NewExecutor(c, tasks, runtime.executorOptions...)
-
 	var desiredTasks []string
 	var watchMode bool
 	if len(runtime.flags.Args()) == 0 {
@@ -133,6 +131,9 @@ func Run(options ...RunOption) {
 		desiredTasks = runtime.flags.Args()
 		watchMode = watch
 	}
+
+	executorOptions := append([]ExecutorOption{WithWatchMode(watchMode)}, runtime.executorOptions...)
+	executor := NewExecutor(c, tasks, executorOptions...)
 
 	if len(tasks) == 0 {
 		log.Fatalln("No tasks specified")
