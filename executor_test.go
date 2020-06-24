@@ -34,7 +34,7 @@ func TestExecutorSimple(t *testing.T) {
 
 	taskA := &taskrunner.Task{
 		Name: "A",
-		Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+		Run: func(ctx context.Context, shellRun shell.ShellRun, flags *string) error {
 			mockA.Fn()
 			return nil
 		},
@@ -42,7 +42,7 @@ func TestExecutorSimple(t *testing.T) {
 
 	taskB := &taskrunner.Task{
 		Name: "B",
-		Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+		Run: func(ctx context.Context, shellRun shell.ShellRun, flags *string) error {
 			mockB.Fn()
 			return nil
 		},
@@ -61,7 +61,7 @@ func TestExecutorSimple(t *testing.T) {
 		{
 			"single task",
 			func(t *testing.T) {
-				executor.Run(ctx, []string{"A"}, &taskrunner.Runtime{})
+				executor.Run(ctx, []string{"A"}, &taskrunner.Runtime{}, nil)
 				mockA.ExpectCalls(t, 1)
 				mockB.ExpectCalls(t, 0)
 			},
@@ -70,7 +70,7 @@ func TestExecutorSimple(t *testing.T) {
 			"dependent task",
 			func(t *testing.T) {
 				ctx = context.Background()
-				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{})
+				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{}, nil)
 
 				mockA.ExpectCalls(t, 1)
 				mockB.ExpectCalls(t, 1)
@@ -115,7 +115,7 @@ func TestExecutorInvalidations(t *testing.T) {
 
 	taskA := &taskrunner.Task{
 		Name: "A",
-		Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+		Run: func(ctx context.Context, shellRun shell.ShellRun, flags *string) error {
 			mockA.Fn()
 			return nil
 		},
@@ -123,7 +123,7 @@ func TestExecutorInvalidations(t *testing.T) {
 
 	taskB := &taskrunner.Task{
 		Name: "B",
-		Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+		Run: func(ctx context.Context, shellRun shell.ShellRun, flags *string) error {
 			mockB.Fn()
 			return nil
 		},
@@ -159,7 +159,7 @@ func TestExecutorInvalidations(t *testing.T) {
 					cancel()
 				}()
 
-				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{})
+				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{}, nil)
 			},
 		},
 		{
@@ -184,7 +184,7 @@ func TestExecutorInvalidations(t *testing.T) {
 					cancel()
 				}()
 
-				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{})
+				executor.Run(ctx, []string{"B"}, &taskrunner.Runtime{}, nil)
 			},
 		},
 	} {

@@ -9,7 +9,8 @@ import (
 type Task struct {
 	Name string
 
-	// A one or two sentence description of what the task does
+	// A one or two sentence description of what the task does. If this task
+	// accepts command line args, include information about them here.
 	Description string
 
 	// XXX: Pass files in so that task can decide to do less work, i.e. if
@@ -17,7 +18,7 @@ type Task struct {
 
 	// Run is called when the task should be run. The function should gracefully
 	// handle context cancelation.
-	Run func(ctx context.Context, shellRun shell.ShellRun) error
+	Run func(ctx context.Context, shellRun shell.ShellRun, flagString *string) error
 
 	ShouldInvalidate func(event InvalidationEvent) bool
 
@@ -35,4 +36,8 @@ type Task struct {
 
 	// Ignore is a set of globs subtracted from Sources.
 	Ignore []string
+
+	// Flags is a string that represents command line args recognized by this task.
+	// Flags are passed in from Taskrunner exactly as entered by a user.
+	Flags *string
 }

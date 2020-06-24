@@ -108,8 +108,8 @@ func (c *Cache) isValid(task *taskrunner.Task) bool {
 	return true
 }
 
-func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.ShellRun) error {
-	return func(ctx context.Context, shellRun shell.ShellRun) error {
+func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.ShellRun, *string) error {
+	return func(ctx context.Context, shellRun shell.ShellRun, flagString *string) error {
 		if c.isFirstRun(task) && c.isValid(task) {
 			// report that the task wasn't run
 			logger := taskrunner.LoggerFromContext(ctx)
@@ -118,7 +118,7 @@ func (c *Cache) maybeRun(task *taskrunner.Task) func(context.Context, shell.Shel
 				return nil
 			}
 		}
-		return task.Run(ctx, shellRun)
+		return task.Run(ctx, shellRun, flagString)
 	}
 }
 
