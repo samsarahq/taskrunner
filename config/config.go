@@ -1,3 +1,11 @@
+// Package config provides configuration for taskrunner.
+//
+// Config is the exported, usable configuration object, built from
+// ReadConfig.
+//
+// Internally, the package represents the json file as a separate struct type,
+// configFile. This distinction helps make features like extending configurations
+// easier to support and test.
 package config
 
 import (
@@ -13,6 +21,7 @@ import (
 type configFile struct {
 	configPath string
 
+	Extends      *string  `json:"extends"`
 	Path         *string  `json:"path"`
 	DesiredTasks []string `json:"desiredTasks"`
 }
@@ -65,27 +74,89 @@ type Config struct {
 	DesiredTasks []string
 }
 
-// ReadConfig reads the configuration at configPath and returns a Config.
-func ReadConfig(configPath string) (*Config, error) {
-	content, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, err
+// With extends the base configuration with settings from the input configFile,
+// returning a new config without modifying the original.
+func (c *Config) With(configFile *configFile) (*Config, error) {
+	copy := *c
+
+	if path := configFile.Path; path != nil {
+		resolvedPath, err := resolveWorkingDir(configFile.configPath, *path)
+		if err != nil {
+			return nil, oops.Wrapf(err, "failed to resolve path for %s", *path)
+		}
+		copy.WorkingDir = resolvedPath
 	}
 
+	if configFile.DesiredTasks != nil {
+		merged := make(map[string]struct{})
+		for _, task := range c.DesiredTasks {
+			merged[task] = struct{}{}
+		}
+		for _, task := range configFile.DesiredTasks {
+			merged[task] = struct{}{}
+		}
+
+		mergedTasks := make([]string, 0, len(merged))
+		for task := range merged {
+			mergedTasks = append(mergedTasks, task)
+		}
+		copy.DesiredTasks = mergedTasks
+	}
+
+	copy.ConfigPath = configFile.configPath
+
+	return &copy, nil
+}
+
+// readConfigFile reads the configuration at configPath and returns the json file representation.
+func readConfigFile(configPath string) (*configFile, error) {
 	resolvedConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
-		return nil, oops.Wrapf(err, "unable to find config file %s", configPath)
+		return nil, oops.Wrapf(err, "unable to resolve config file path")
+	}
+
+	content, err := ioutil.ReadFile(resolvedConfigPath)
+	if err != nil {
+		return nil, oops.Wrapf(err, "unable to read file")
 	}
 
 	configFile := configFile{configPath: resolvedConfigPath}
 	if err := json.Unmarshal(content, &configFile); err != nil {
-		return nil, err
+		return nil, oops.Wrapf(err, "unable to parse json")
 	}
 
-	config, err := configFile.ToConfig()
+	return &configFile, nil
+}
+
+// ReadConfig reads the configuration at configPath and returns a Config.
+func ReadConfig(configPath string) (*Config, error) {
+	configFile, err := readConfigFile(configPath)
 	if err != nil {
-		return nil, oops.Wrapf(err, "failed to build config from %s", resolvedConfigPath)
+		return nil, oops.Wrapf(err, "failed to read config file at %s", configPath)
 	}
 
-	return config, nil
+	if configFile.Extends == nil {
+		config, err := configFile.ToConfig()
+		if err != nil {
+			return nil, oops.Wrapf(err, "failed to build config from %s", configFile.configPath)
+		}
+		return config, nil
+	}
+
+	extends, err := filepath.Abs(filepath.Join(filepath.Dir(configPath), *configFile.Extends))
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to resolve base config at %s", *configFile.Extends)
+	}
+
+	baseConfig, err := ReadConfig(extends)
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to read base config at %s", extends)
+	}
+
+	merged, err := baseConfig.With(configFile)
+	if err != nil {
+		return nil, oops.Wrapf(err, "failed to read base config at %s", extends)
+	}
+
+	return merged, nil
 }
