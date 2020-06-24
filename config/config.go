@@ -11,6 +11,7 @@ package config
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/samsarahq/go/oops"
@@ -159,4 +160,17 @@ func ReadConfig(configPath string) (*Config, error) {
 	}
 
 	return merged, nil
+}
+
+// ReadDefaultConfig reads the default configuration from workspace.taskrunner.json.
+// If present, user.taskrunner.json will be used instead.
+func ReadDefaultConfig() (*Config, error) {
+	workspaceConfig := "./workspace.taskrunner.json"
+	userConfig := "./user.taskrunner.json"
+
+	if _, err := os.Stat(userConfig); err == nil {
+		return ReadConfig(userConfig)
+	}
+
+	return ReadConfig(workspaceConfig)
 }
