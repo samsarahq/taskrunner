@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/samsarahq/go/oops"
+	"github.com/samsarahq/taskrunner/config"
 	"github.com/samsarahq/taskrunner/shell"
 	"github.com/samsarahq/taskrunner/watcher"
 	"go.uber.org/multierr"
@@ -20,10 +21,13 @@ import (
 // necessary.
 type Executor struct {
 	ctx    context.Context
-	config *Config
+	config *config.Config
 
 	// tasks is set of desired tasks to be evaluated in the executor DAG.
 	tasks taskSet
+
+	// watchMode is whether or not executor.Run should watch for file changes.
+	watchMode bool
 
 	// mu locks on executor evaluations, preventing
 	// multiple plans or multiple passes from running concurrently.
@@ -63,6 +67,13 @@ func WithWatcherEnhancer(we WatcherEnhancer) ExecutorOption {
 	}
 }
 
+// WithWatchMode controls the file watching mode.
+func WithWatchMode(watchMode bool) ExecutorOption {
+	return func(e *Executor) {
+		e.watchMode = watchMode
+	}
+}
+
 func ShellRunOptions(opts ...shell.RunOption) ExecutorOption {
 	return func(e *Executor) {
 		e.shellRunOptions = append(e.shellRunOptions, opts...)
@@ -70,7 +81,7 @@ func ShellRunOptions(opts ...shell.RunOption) ExecutorOption {
 }
 
 // NewExecutor initializes a new executor.
-func NewExecutor(config *Config, tasks []*Task, opts ...ExecutorOption) *Executor {
+func NewExecutor(config *config.Config, tasks []*Task, opts ...ExecutorOption) *Executor {
 	executor := &Executor{
 		config:         config,
 		invalidationCh: make(chan struct{}, 1),
@@ -89,7 +100,7 @@ func NewExecutor(config *Config, tasks []*Task, opts ...ExecutorOption) *Executo
 }
 
 // Config returns the taskrunner configuration.
-func (e *Executor) Config() *Config { return e.config }
+func (e *Executor) Config() *config.Config { return e.config }
 
 // Subscribe returns a channel of executor-level events. Each invocation
 // of Events() returns a new channel. The done function should be called
@@ -183,7 +194,7 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 		}
 	}()
 	e.runInvalidationLoop()
-	if e.config.Watch {
+	if e.watchMode {
 		e.runWatch(ctx)
 	}
 

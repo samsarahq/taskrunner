@@ -28,7 +28,7 @@ func IsTaskSource(task *Task, path string) (matches bool) {
 }
 
 func (e *Executor) runWatch(ctx context.Context) {
-	watcher := watcher.NewWatcher(e.config.WorkingDir())
+	watcher := watcher.NewWatcher(e.config.WorkingDir)
 	for _, enhancer := range e.watcherEnhancers {
 		watcher = enhancer(watcher)
 	}

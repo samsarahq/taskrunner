@@ -40,7 +40,7 @@ func New(opts ...shell.RunOption) *Cache {
 
 func (c *Cache) Option(r *taskrunner.Runtime) {
 	r.OnStart(func(ctx context.Context, executor *taskrunner.Executor) error {
-		c.cacheFile = getCacheFilePath(executor.Config().WorkingDir())
+		c.cacheFile = getCacheFilePath(executor.Config().WorkingDir)
 		return c.Start(ctx)
 	})
 	r.OnStop(func(ctx context.Context, executor *taskrunner.Executor) error {
