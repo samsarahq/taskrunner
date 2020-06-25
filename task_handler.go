@@ -19,7 +19,7 @@ func (h *TaskHandler) Definition() *Task {
 }
 
 func (h *TaskHandler) Invalidate(reason InvalidationEvent) {
-	h.Invalidate(reason)
+	h.execution.Invalidate(reason)
 }
 
 type TaskHandlerExecutionState string
