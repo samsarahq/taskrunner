@@ -130,6 +130,9 @@ func (e *Executor) runInvalidationLoop() {
 			case <-e.invalidationCh:
 				timer.Reset(time.Second)
 
+			case <-e.ctx.Done():
+				return
+
 			case <-timer.C:
 				e.evaluateInvalidationPlan()
 				go e.runPass()
