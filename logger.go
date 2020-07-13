@@ -38,3 +38,18 @@ func (l *eventLogger) Write(p []byte) (int, error) {
 	})
 	return len(p), nil
 }
+
+// Logf writes a log message to the stdout logger for the task.
+// It will append a newline if one is not present at the end.
+func Logf(ctx context.Context, f string, args ...interface{}) {
+	logger := LoggerFromContext(ctx)
+	if logger == nil {
+		return
+	}
+
+	s := fmt.Sprintf(f, args...)
+	if len(s) == 0 || s[len(s)-1] != '\n' {
+		s += "\n"
+	}
+	fmt.Fprint(logger.Stdout, s)
+}
