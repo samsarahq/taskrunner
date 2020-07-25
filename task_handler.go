@@ -25,17 +25,19 @@ func (h *TaskHandler) Invalidate(reason InvalidationEvent) {
 type TaskHandlerExecutionState string
 
 const (
-	TaskHandlerExecutionState_Invalid TaskHandlerExecutionState = "invalid"
-	TaskHandlerExecutionState_Running                           = "running"
-	TaskHandlerExecutionState_Error                             = "error"
-	TaskHandlerExecutionState_Done                              = "done"
+	TaskHandlerExecutionState_Invalid  TaskHandlerExecutionState = "invalid"
+	TaskHandlerExecutionState_Running                            = "running"
+	TaskHandlerExecutionState_Error                              = "error"
+	TaskHandlerExecutionState_Done                               = "done"
+	TaskHandlerExecutionState_Canceled                           = "canceled"
 )
 
 var TaskHandlerExecutionStateMap = map[taskExecutionState]TaskHandlerExecutionState{
-	taskExecutionState_invalid: TaskHandlerExecutionState_Invalid,
-	taskExecutionState_running: TaskHandlerExecutionState_Running,
-	taskExecutionState_error:   TaskHandlerExecutionState_Error,
-	taskExecutionState_done:    TaskHandlerExecutionState_Done,
+	taskExecutionState_invalid:  TaskHandlerExecutionState_Invalid,
+	taskExecutionState_running:  TaskHandlerExecutionState_Running,
+	taskExecutionState_error:    TaskHandlerExecutionState_Error,
+	taskExecutionState_done:     TaskHandlerExecutionState_Done,
+	taskExecutionState_canceled: TaskHandlerExecutionState_Canceled,
 }
 
 func (h *TaskHandler) State() TaskHandlerExecutionState {

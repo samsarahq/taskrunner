@@ -308,6 +308,7 @@ func (e *Executor) runPass() {
 					}
 
 					if ctx.Err() == context.Canceled {
+						execution.state = taskExecutionState_canceled
 						e.publishEvent(&TaskStoppedEvent{
 							simpleEvent: execution.simpleEvent(),
 						})

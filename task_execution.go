@@ -13,12 +13,15 @@ const (
 	// on the next invalidation plan.
 	taskExecutionState_invalid = iota
 	// taskExecutionState_running tasks are currently executing. They may transition to
-	// error on failure or done on succesful completion.
+	// error on failure or done on succesful completion. Tasks may also be canceled.
 	taskExecutionState_running
 	// taskExecutionState_error tasks were running and failed. They may transition to invalid.
 	taskExecutionState_error
 	// taskExecutionState_done tasks were running and completed without errors. They may transition to invalid.
 	taskExecutionState_done
+	// taskExecutionState_canceled tasks were running and were stopped by the
+	// user. Tasks cannot leave canceled state.
+	taskExecutionState_canceled
 )
 
 // taskExecution is a node in the Executor's DAG. It holds the state
@@ -64,7 +67,7 @@ func (e *taskExecution) ShouldExecute() bool {
 // invalidate stops the task if running, resets the execution
 // state for the task, then invalidates all dependents.
 func (e *taskExecution) invalidate(executionCtx context.Context) {
-	if e.state == taskExecutionState_invalid {
+	if e.state == taskExecutionState_invalid || e.state == taskExecutionState_canceled {
 		return
 	}
 
