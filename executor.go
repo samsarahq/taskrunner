@@ -277,6 +277,10 @@ func (e *Executor) provideEventLogger(t *Task) *Logger {
 
 // runPass kicks off tasks that are in an executable state.
 func (e *Executor) runPass() {
+	if e.ctx.Err() != nil {
+		return
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
