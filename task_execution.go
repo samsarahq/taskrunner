@@ -9,9 +9,15 @@ import (
 type taskExecutionState int
 
 const (
+	// taskExecutionState_invalid tasks are not running and are queued to be started
+	// on the next invalidation plan.
 	taskExecutionState_invalid = iota
+	// taskExecutionState_running tasks are currently executing. They may transition to
+	// error on failure or done on succesful completion.
 	taskExecutionState_running
+	// taskExecutionState_error tasks were running and failed. They may transition to invalid.
 	taskExecutionState_error
+	// taskExecutionState_done tasks were running and completed without errors. They may transition to invalid.
 	taskExecutionState_done
 )
 
