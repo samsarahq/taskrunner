@@ -318,11 +318,11 @@ func (e *Executor) runPass() {
 							Error:       err,
 						})
 					} else {
+						execution.state = taskExecutionState_done
 						e.publishEvent(&TaskCompletedEvent{
 							simpleEvent: execution.simpleEvent(),
 							Duration:    duration,
 						})
-						execution.state = taskExecutionState_done
 					}
 
 					// It's important that we flush the error/done states before
