@@ -308,7 +308,12 @@ func (e *Executor) runPass() {
 					}
 
 					if ctx.Err() == context.Canceled {
-						execution.state = taskExecutionState_canceled
+						// Only move ourselves to permanently canceled if taskrunner is shutting down. Note
+						// that the invalidation codepath already set the state as invalid, so there is
+						// no else statement.
+						if e.ctx.Err() != nil {
+							execution.state = taskExecutionState_canceled
+						}
 						e.publishEvent(&TaskStoppedEvent{
 							simpleEvent: execution.simpleEvent(),
 						})
