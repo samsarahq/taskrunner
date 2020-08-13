@@ -178,6 +178,13 @@ func (b *buildBinder) shouldInvalidate(event taskrunner.InvalidationEvent) bool 
 			return true
 		}
 
+		// It is possible that the invalidation event is for a non-go file.
+		// The builder does not know how to handle this, and is only concerned
+		// with invalidating go packages.
+		if !strings.HasSuffix(event.File, ".go") {
+			return true
+		}
+
 		for _, dep := range append(b.pkgDependencies, b.pkg) {
 			// Ignore dependencies that are part of the std lib.
 			if isStdLib(dep) {
