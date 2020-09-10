@@ -44,6 +44,13 @@ func Env(vars map[string]string) RunOption {
 	}
 }
 
+// Dir sets the working directory for the command.
+func Dir(dir string) RunOption {
+	return func(r *interp.Runner) {
+		r.Dir = dir
+	}
+}
+
 // Run executes a shell command.
 func Run(ctx context.Context, command string, opts ...RunOption) error {
 	p, err := syntax.NewParser().Parse(strings.NewReader(command), "")
