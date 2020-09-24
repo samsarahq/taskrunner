@@ -46,6 +46,8 @@ type GoBuilder struct {
 	timer    *time.Timer
 	requests chan request
 
+	moduleRoot string
+
 	mu       sync.Mutex
 	doneCh   chan struct{}
 	shellRun shell.ShellRun
@@ -57,7 +59,7 @@ type GoBuilder struct {
 	LogToStdout bool
 }
 
-func NewGoBuilder() *GoBuilder {
+func NewGoBuilder(moduleRoot string) *GoBuilder {
 	timer := time.NewTimer(time.Second)
 	timer.Stop()
 
@@ -67,6 +69,8 @@ func NewGoBuilder() *GoBuilder {
 		packages: make(map[string]struct{}),
 		loggers:  make(map[*taskrunner.Logger]struct{}),
 		requests: ch,
+
+		moduleRoot: moduleRoot,
 	}
 
 	go func() {
@@ -115,6 +119,9 @@ func (b *GoBuilder) build() {
 	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), func(r *interp.Runner) {
 		r.Stdout = stdout
 		r.Stderr = stderr
+		if b.moduleRoot != "" {
+			r.Dir = b.moduleRoot
+		}
 	})
 	fmt.Fprintln(stdout, "done building packages")
 
