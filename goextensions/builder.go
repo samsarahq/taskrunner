@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ func isStdLib(pkg string) bool {
 		return *stdlibLookup[pkg]
 	}
 
-	_, err := os.Stat(filepath.Join(os.Getenv("GOROOT"), "src", pkg))
+	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src", pkg))
 	isStdLib := err == nil
 	stdlibLookup[pkg] = &isStdLib
 	return isStdLib
