@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/samsarahq/go/oops"
 	"github.com/samsarahq/taskrunner/config"
@@ -113,11 +114,15 @@ func Run(options ...RunOption) {
 	}
 
 	if describeTasks {
-		var outputString string
+		w := tabwriter.NewWriter(os.Stdout, 0, 3, 0, ' ', 0)
+
+		fmt.Fprintln(w, "\tTask name\tDescription")
 		for _, task := range tasks {
-			outputString = fmt.Sprintf("%s\n\t%s\t %s", outputString, task.Name, task.Description)
+			fmt.Fprintf(w, "\t%s\t%s\n", task.Name, task.Description)
 		}
-		fmt.Println(outputString)
+		if err := w.Flush(); err != nil {
+			log.Fatalf("unable to flush tabwriter: \n%v\n", err)
+		}
 		return
 	}
 
