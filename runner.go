@@ -18,6 +18,7 @@ var (
 	configFile     string
 	nonInteractive bool
 	listTasks      bool
+	listAllTasks   bool
 	watch          bool
 	describeTasks  bool
 )
@@ -46,7 +47,8 @@ func newRuntime() *Runtime {
 	}
 	r.flags.StringVar(&configFile, "config", "", "Configuration file to use")
 	r.flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode (only applies when running the default set of tasks)")
-	r.flags.BoolVar(&listTasks, "list", false, "List all tasks")
+	r.flags.BoolVar(&listTasks, "list", false, "List all tasks except those marked \"Hidden\"")
+	r.flags.BoolVar(&listAllTasks, "listAll", false, "List all tasks including those marked as \"Hidden\"")
 	r.flags.BoolVar(&watch, "watch", false, "Run in watch mode (only applies when passing custom tasks)")
 	r.flags.BoolVar(&describeTasks, "describe", false, "Describe all tasks")
 
@@ -104,9 +106,16 @@ func Run(options ...RunOption) {
 
 	tasks := runtime.registry.Tasks()
 
-	if listTasks {
+	if listTasks && listAllTasks {
+		log.Fatalf("--list and --listAll cannot be specified at the same time. Please only use one.")
+	}
+
+	if listTasks || listAllTasks {
 		outputString := "Run specified tasks with `taskrunner taskname1 taskname2`\nTasks available:"
 		for _, task := range tasks {
+			if listTasks && task.Hidden {
+				continue
+			}
 			outputString = outputString + "\n\t" + task.Name
 		}
 		fmt.Println(outputString)

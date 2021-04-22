@@ -29,6 +29,9 @@ type Task struct {
 	// If true, this task will be restarted when it exits, regardless of exit code.
 	KeepAlive bool
 
+	// Hidden specifies whether or not to show the task when -list is called.
+	Hidden bool
+
 	// Sources specifies globs that this task depends on. When those files change,
 	// the task will be invalidated.
 	Sources []string
