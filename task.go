@@ -38,4 +38,8 @@ type Task struct {
 
 	// Ignore is a set of globs subtracted from Sources.
 	Ignore []string
+
+	// IsGroup specifies whether this task is a pseudo-task that groups
+	// other tasks underneath it.
+	IsGroup bool
 }
