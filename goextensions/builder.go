@@ -55,6 +55,7 @@ type GoBuilder struct {
 
 	// Options:
 	LogToStdout bool
+	ModuleRoot  string
 }
 
 func NewGoBuilder() *GoBuilder {
@@ -115,6 +116,9 @@ func (b *GoBuilder) build() {
 	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), func(r *interp.Runner) {
 		r.Stdout = stdout
 		r.Stderr = stderr
+		if b.ModuleRoot != "" {
+			r.Dir = b.ModuleRoot
+		}
 	})
 	fmt.Fprintln(stdout, "done building packages")
 
@@ -159,9 +163,13 @@ func newBuildBinder(pkg string) *buildBinder {
 	return binder
 }
 
-func (b *buildBinder) saveDependencies(ctx context.Context, shellRun shell.ShellRun) error {
+func (b *buildBinder) saveDependencies(ctx context.Context, root string, shellRun shell.ShellRun) error {
 	var buffer bytes.Buffer
-	if err := shellRun(ctx, fmt.Sprintf("go list -f '{{ .Deps }}' %s", b.pkg), shell.Stdout(&buffer)); err != nil {
+	if err := shellRun(ctx, fmt.Sprintf("go list -f '{{ .Deps }}' %s", b.pkg), shell.Stdout(&buffer), func(r *interp.Runner) {
+		if root != "" {
+			r.Dir = root
+		}
+	}); err != nil {
 		return err
 	}
 
@@ -216,7 +224,7 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 				return err
 			}
 
-			if err := buildBinder.saveDependencies(ctx, shellRun); err != nil {
+			if err := buildBinder.saveDependencies(ctx, builder.ModuleRoot, shellRun); err != nil {
 				return err
 			}
 
