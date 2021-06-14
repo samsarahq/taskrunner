@@ -41,6 +41,7 @@ func (r *Registry) Group(name string, tasks ...*Task) {
 	r.Add(&Task{
 		Name:         name,
 		Dependencies: tasks,
+		IsGroup:      true,
 	})
 }
 
