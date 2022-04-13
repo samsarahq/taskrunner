@@ -19,6 +19,7 @@ var (
 	nonInteractive bool
 	listTasks      bool
 	listAllTasks   bool
+	grepString     string
 	watch          bool
 	describeTasks  bool
 )
@@ -51,6 +52,7 @@ func newRuntime() *Runtime {
 	r.flags.BoolVar(&listAllTasks, "listAll", false, "List all tasks including those marked as \"Hidden\"")
 	r.flags.BoolVar(&watch, "watch", false, "Run in watch mode (only applies when passing custom tasks)")
 	r.flags.BoolVar(&describeTasks, "describe", false, "Describe all tasks")
+	r.flags.StringVar(&grepString, "grep", "", "Search for specific tasks")
 
 	return r
 }
@@ -119,6 +121,18 @@ func Run(options ...RunOption) {
 			outputString = outputString + "\n\t" + task.Name
 		}
 		fmt.Println(outputString)
+		return
+	}
+
+	if grepString != "" {
+		var matchedTasks []string
+		outputString := fmt.Sprintf("Tasks matched to '%s': \n", grepString)
+		for _, task := range tasks {
+			if strings.Contains(task.Name, grepString) {
+				matchedTasks = append(matchedTasks, task.Name)
+			}
+		}
+		fmt.Println(outputString + strings.Join(matchedTasks, "\n"))
 		return
 	}
 
