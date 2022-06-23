@@ -37,6 +37,13 @@ func WithStreams(streams ...taskrunner.TaskLogEventStream) ReporterOption {
 // WithUpload is mutually exclusive vs WithPath. Uploads the buildkite annotation directly.
 func WithUpload(r *reporter) { r.uploadDirectly = true }
 
+// WithWarningUpload is mutually exclusive vs WithPath. Uploads the buildkite annotation directly as a warning.
+// This contrasts with WithUpload which will upload as an error.
+func WithWarningUpload(r *reporter) {
+	r.uploadDirectly = true
+	r.uploadWarning = true
+}
+
 func Option(opts ...ReporterOption) func(*taskrunner.Runtime) {
 	reporter := newReporter()
 	for _, opt := range opts {
@@ -65,6 +72,7 @@ type reporter struct {
 	sync.Mutex
 	path           string
 	uploadDirectly bool
+	uploadWarning  bool
 	maxLines       int
 	stderrs        map[*taskrunner.Task][]string
 	streams        []taskrunner.TaskLogEventStream
@@ -137,10 +145,20 @@ func (r *reporter) upload(ctx context.Context, shellRun shell.ShellRun, tasks []
 	if failures == 0 {
 		return nil
 	}
+
+	style := "error"
+	contextSuffix := ""
+	if r.uploadWarning {
+		style = "warning"
+		contextSuffix = "-warning"
+	}
+
+	cmd := fmt.Sprintf("buildkite-agent annotate --style=%s --context=taskrunner%s --append", style, contextSuffix)
+
 	fmt.Println("Uploading buildkite annotation")
 	return shellRun(
 		ctx,
-		"buildkite-agent annotate --style=error --context=taskrunner --append",
+		cmd,
 		shell.Stdout(os.Stdout),
 		shell.Stderr(os.Stderr),
 		shell.Stdin(annotation),
