@@ -3,6 +3,9 @@ package taskrunner
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,6 +47,14 @@ type Executor struct {
 	// whether or not they are desired.
 	taskRegistry map[string]*Task
 
+	// taskFlagsRegistry contains all supported flags per task
+	// registered to the executor, whether or not they are desired.
+	taskFlagsRegistry map[string]map[string]TaskFlag
+
+	// taskFlagArgs contains all desired options grouped by desired tasks
+	// passed into CLI.
+	taskFlagArgs map[string][]string
+
 	shellRunOptions []shell.RunOption
 
 	// eventsCh keeps track of subscribers to events for this executor.
@@ -59,6 +70,12 @@ type WatcherEnhancer func(watcher.Watcher) watcher.Watcher
 var errUndefinedTaskName = errors.New("undefined task name")
 
 type ExecutorOption func(*Executor)
+
+var flagTypeToGetter = map[string]string{
+	StringTypeFlag: "StringVal",
+	BoolTypeFlag:   "BoolVal",
+	IntTypeFlag:    "IntVal",
+}
 
 // WithWatcherEnhancer adds a watcher enhancer to run when creating the enhancer.
 func WithWatcherEnhancer(we WatcherEnhancer) ExecutorOption {
@@ -83,9 +100,11 @@ func ShellRunOptions(opts ...shell.RunOption) ExecutorOption {
 // NewExecutor initializes a new executor.
 func NewExecutor(config *config.Config, tasks []*Task, opts ...ExecutorOption) *Executor {
 	executor := &Executor{
-		config:         config,
-		invalidationCh: make(chan struct{}, 1),
-		taskRegistry:   make(map[string]*Task),
+		config:            config,
+		invalidationCh:    make(chan struct{}, 1),
+		taskRegistry:      make(map[string]*Task),
+		taskFlagsRegistry: make(map[string]map[string]TaskFlag),
+		taskFlagArgs:      make(map[string][]string),
 	}
 
 	for _, opt := range opts {
@@ -275,6 +294,114 @@ func (e *Executor) provideEventLogger(t *Task) *Logger {
 	}
 }
 
+func (e *Executor) parseTaskOptionsListToMap(taskName string, flags []string) map[string]FlagArg {
+	taskFlagsMap := make(map[string]FlagArg)
+
+	for _, flag := range flags {
+		var key string
+		var val string
+		splitFlag := strings.Split(flag, "=")
+
+		if len(splitFlag) == 2 {
+			// If the passed flag has an "=" in it, assume that it is a variable flag
+			// (e.g. --var="val")
+			key = splitFlag[0]
+			val = splitFlag[1]
+		} else if len(splitFlag) == 1 {
+			// If the passed flag does not have an "=" in it, assume that it is a bool flag
+			// (e.g. --true)
+			key = splitFlag[0]
+		} else {
+			// If the passed flag has >1 "=" in it, this is invalid syntax
+			panic(fmt.Sprintf("Invalid flag syntax for %s: `%s`", taskName, flag))
+		}
+
+		key, err := e.getVerifiedFlagKey(taskName, splitFlag[0])
+		if err != nil {
+			panic(fmt.Sprintf("Unsupported flag passed to %s: `%s`. See error: %s", taskName, key, err))
+		}
+
+		// At this point, we should have verified that this flag is supported in `getVerifiedFlagKey`
+		taskFlag := e.taskFlagsRegistry[taskName][key]
+		flagValErrMsg := fmt.Sprintf("The value for this flag is `%s`. Please use `%s`", taskFlag.ValueType, flagTypeToGetter[taskFlag.ValueType])
+		flagArg := FlagArg{
+			Value: val,
+			BoolVal: func() bool {
+				if taskFlag.ValueType != "bool" {
+					panic(flagValErrMsg)
+				}
+
+				return true
+			},
+			IntVal: func() int {
+				if taskFlag.ValueType != "int" {
+					panic(flagValErrMsg)
+				}
+
+				num, err := strconv.Atoi(val)
+				if err != nil {
+					// Handle error - val was invalid int
+				}
+				return num
+			},
+			StringVal: func() string {
+				if taskFlag.ValueType != "string" {
+					panic(flagValErrMsg)
+				}
+
+				return val
+			},
+		}
+		taskFlagsMap[key] = flagArg
+
+		// Allow readers to index into flag map via either LongName or ShortName
+		// regardless of which arg was passed in if both names are available
+		if len(key) == 1 && key != taskFlag.LongName && taskFlag.LongName != "" {
+			// If only one char was passed through, check whether a LongName is available
+			// and also register it in the map
+			key = taskFlag.LongName
+			taskFlagsMap[key] = flagArg
+		} else if len(key) > 1 && key == taskFlag.LongName && taskFlag.ShortName != 0 {
+			// If >1 char was passed through, check whether a ShortName is available
+			// and also register it in the map
+			key = string(taskFlag.ShortName)
+			taskFlagsMap[key] = flagArg
+		}
+	}
+
+	return taskFlagsMap
+}
+
+func (e *Executor) getVerifiedFlagKey(taskName string, flagKey string) (string, error) {
+	var strippedKey string
+	if strings.HasPrefix(flagKey, "--") {
+		// If the flag key is prefixed with "--", we expect it to be the flag LongName
+		strippedKey = string(flagKey[2:])
+		if len(strippedKey) <= 1 {
+			return flagKey, errors.New(fmt.Sprintf("Unknown flag: `%s`", strippedKey))
+		}
+	} else if strings.HasPrefix(flagKey, "-") {
+		// If the flag key is prefixed with "-", we expect it to be the flag ShortName
+		strippedKey = string(flagKey[1:])
+		if len(strippedKey) != 1 {
+			return flagKey, errors.New(fmt.Sprintf("Did you mean `--%s` (with two dashes)?", strippedKey))
+		}
+	} else {
+		// If the flag is not prefixed with any dashes, this is invalid syntax
+		return flagKey, errors.New(fmt.Sprintf("Options must be specified with either `-` or `--`"))
+	}
+
+	// Check that task is valid
+	if _, ok := e.taskFlagsRegistry[taskName]; ok {
+		// Check that flag is supported
+		if _, ok = e.taskFlagsRegistry[taskName][strippedKey]; ok {
+			return strippedKey, nil
+		}
+	}
+
+	return flagKey, errors.New(fmt.Sprintf("Unsupported flag: %s", flagKey))
+}
+
 // runPass kicks off tasks that are in an executable state.
 func (e *Executor) runPass() {
 	if e.ctx.Err() != nil {
@@ -302,7 +429,15 @@ func (e *Executor) runPass() {
 					var duration time.Duration
 					var err error
 
-					if task.Run != nil {
+					if task.RunWithFlags != nil {
+						taskFlagsMap := make(map[string]FlagArg)
+
+						if passedFlags, ok := e.taskFlagArgs[task.Name]; ok {
+							taskFlagsMap = e.parseTaskOptionsListToMap(task.Name, passedFlags)
+						}
+						err = task.RunWithFlags(ctx, e.ShellRun, taskFlagsMap)
+						duration = time.Since(started)
+					} else if task.Run != nil {
 						err = task.Run(ctx, e.ShellRun)
 						duration = time.Since(started)
 					}
