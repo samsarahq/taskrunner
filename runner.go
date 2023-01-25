@@ -82,6 +82,46 @@ func ExecutorOptions(opts ...ExecutorOption) RunOption {
 	}
 }
 
+// groupTaskAndFlagArgs groups all tasks with their flag arguments.
+// Notably, this function does not group flags passed to taskrunner itself.
+// Those flags are stored via the flags package and are handled separately.
+func (r *Runtime) groupTaskAndFlagArgs() map[string][]string {
+	args := os.Args[1:]
+	flagArgsPerTask := map[string][]string{}
+
+	var currTaskName string
+	var currFlagsList []string
+	for _, arg := range args {
+		// Check task registry to figure out whether arg the is a task or a flag
+		val, ok := r.registry.definitions[arg]
+		if ok {
+			if currTaskName == "" {
+				// If this is the first task, we've found, set the currTaskName
+				currTaskName = val.Name
+			} else {
+				// If this is a new task we've found, store the flags we've collected for prev task
+				flagArgsPerTask[currTaskName] = currFlagsList
+				currTaskName = val.Name
+				currFlagsList = []string{}
+			}
+		} else if currTaskName != "" {
+			// If we have identified a current task and we are sure the arg is a flag,
+			// add it to the list of flags we are storing for the current task.
+			// Notably, if the first flags are options to taskrunner, currTaskName will be ""
+			// and we will not group those flags with any tasks
+			currFlagsList = append(currFlagsList, arg)
+		}
+	}
+
+	// Ensure the we register the flags passed to the last task
+	if currTaskName != "" {
+		flagArgsPerTask[currTaskName] = currFlagsList
+	}
+
+	// Return map of task to list of flags passed to it
+	return flagArgsPerTask
+}
+
 func Run(options ...RunOption) {
 	runtime := newRuntime()
 	for _, option := range options {
@@ -136,13 +176,16 @@ func Run(options ...RunOption) {
 	}
 
 	log.Println("Using config", c.ConfigPath)
+	taskFlagGroups := runtime.groupTaskAndFlagArgs()
 	var desiredTasks []string
+	for taskName := range taskFlagGroups {
+		desiredTasks = append(desiredTasks, taskName)
+	}
 	var watchMode bool
-	if len(runtime.flags.Args()) == 0 {
+	if len(desiredTasks) == 0 {
 		desiredTasks = c.DesiredTasks
 		watchMode = !nonInteractive
 	} else {
-		desiredTasks = runtime.flags.Args()
 		watchMode = watch
 	}
 
