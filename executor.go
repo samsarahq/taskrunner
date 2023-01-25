@@ -3,6 +3,9 @@ package taskrunner
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,6 +47,14 @@ type Executor struct {
 	// whether or not they are desired.
 	taskRegistry map[string]*Task
 
+	// taskFlagsRegistry contains all supported flags per task
+	// registered to the executor, whether or not they are desired.
+	taskFlagsRegistry map[string]map[string]TaskFlag
+
+	// taskFlagArgs contains all desired options grouped by desired tasks
+	// passed into CLI.
+	taskFlagArgs map[string][]string
+
 	shellRunOptions []shell.RunOption
 
 	// eventsCh keeps track of subscribers to events for this executor.
@@ -59,6 +70,14 @@ type WatcherEnhancer func(watcher.Watcher) watcher.Watcher
 var errUndefinedTaskName = errors.New("undefined task name")
 
 type ExecutorOption func(*Executor)
+
+var flagTypeToGetter = map[string]string{
+	StringTypeFlag:   "StringVal",
+	BoolTypeFlag:     "BoolVal",
+	IntTypeFlag:      "IntVal",
+	Float64TypeFlag:  "Float64Val",
+	DurationTypeFlag: "DurationVal",
+}
 
 // WithWatcherEnhancer adds a watcher enhancer to run when creating the enhancer.
 func WithWatcherEnhancer(we WatcherEnhancer) ExecutorOption {
@@ -83,9 +102,11 @@ func ShellRunOptions(opts ...shell.RunOption) ExecutorOption {
 // NewExecutor initializes a new executor.
 func NewExecutor(config *config.Config, tasks []*Task, opts ...ExecutorOption) *Executor {
 	executor := &Executor{
-		config:         config,
-		invalidationCh: make(chan struct{}, 1),
-		taskRegistry:   make(map[string]*Task),
+		config:            config,
+		invalidationCh:    make(chan struct{}, 1),
+		taskRegistry:      make(map[string]*Task),
+		taskFlagsRegistry: make(map[string]map[string]TaskFlag),
+		taskFlagArgs:      make(map[string][]string),
 	}
 
 	for _, opt := range opts {
@@ -275,6 +296,253 @@ func (e *Executor) provideEventLogger(t *Task) *Logger {
 	}
 }
 
+func (e *Executor) getDefaultTaskFlagMap(taskName string) map[string]FlagArg {
+	supportedTaskFlags := e.taskFlagsRegistry[taskName]
+	defaultTaskFlagsMap := make(map[string]FlagArg)
+
+	for key, flag := range supportedTaskFlags {
+		keyCopy := key
+		flagCopy := flag
+		flagValErrMsg := fmt.Sprintf("The type for the `%s` flag is `%s`. Please use `%s`", keyCopy, flag.ValueType, flagTypeToGetter[flag.ValueType])
+		flagArg := FlagArg{
+			Value: nil,
+			BoolVal: func() *bool {
+				if flagCopy.ValueType != BoolTypeFlag {
+					panic(flagValErrMsg)
+				}
+
+				if flagCopy.Default != "" {
+					boolVal, err := strconv.ParseBool(flagCopy.Default)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass a bool as the value. Err: %s", err))
+					}
+
+					return &boolVal
+				}
+
+				return nil
+			},
+			IntVal: func() *int {
+				if flagCopy.ValueType != IntTypeFlag {
+					panic(flagValErrMsg)
+				}
+
+				if flagCopy.Default != "" {
+					intVal, err := strconv.Atoi(flagCopy.Default)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass an int as the value. Err: %s", err))
+					}
+					return &intVal
+				}
+
+				return nil
+			},
+			Float64Val: func() *float64 {
+				if flagCopy.ValueType != Float64TypeFlag {
+					panic(flagValErrMsg)
+				}
+
+				if flagCopy.Default != "" {
+					float64Val, err := strconv.ParseFloat(flagCopy.Default, 64)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass a float64 as the value. Err: %s", err))
+					}
+					return &float64Val
+				}
+
+				return nil
+			},
+			DurationVal: func() *time.Duration {
+				if flagCopy.ValueType != DurationTypeFlag {
+					panic(flagValErrMsg)
+				}
+
+				if flagCopy.Default != "" {
+					duration, err := time.ParseDuration(flagCopy.Default)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass a duration as the value. Err: %s", err))
+					}
+					return &duration
+				}
+
+				return nil
+			},
+			StringVal: func() *string {
+				if flagCopy.ValueType != StringTypeFlag {
+					panic(flagValErrMsg)
+				}
+
+				if flagCopy.Default != "" {
+					return &flagCopy.Default
+				}
+
+				return nil
+			},
+		}
+
+		defaultTaskFlagsMap[key] = flagArg
+	}
+
+	return defaultTaskFlagsMap
+}
+
+func (e *Executor) parseTaskFlagsIntoMap(taskName string, flags []string) map[string]FlagArg {
+	taskFlagsMap := e.getDefaultTaskFlagMap(taskName)
+
+	for _, flag := range flags {
+		var key string
+		var val string
+		splitFlag := strings.Split(flag, "=")
+
+		key, err := e.getVerifiedFlagKey(taskName, splitFlag[0])
+		if err != nil {
+			panic(fmt.Sprintf("Unsupported flag passed to %s: `%s`. See error: %s", taskName, key, err))
+		}
+
+		if len(splitFlag) > 2 || len(splitFlag) == 0 {
+			// If the passed flag has >1 "=" in it or the arg was an empty string,
+			// then the flag has invalid syntax.
+			panic(fmt.Sprintf("Invalid flag syntax for %s: `%s`", taskName, flag))
+		} else if len(splitFlag) == 2 {
+			// If the passed flag has an "=" in it, assume that variable flag was set
+			// (e.g. --var="val").
+			val = splitFlag[1]
+		}
+
+		// At this point, we should have verified that this flag is supported in `getVerifiedFlagKey`.
+		taskFlag := e.taskFlagsRegistry[taskName][key]
+		flagValErrMsg := fmt.Sprintf("The type for the `%s` flag is `%s`. Please use `%s`", key, taskFlag.ValueType, flagTypeToGetter[taskFlag.ValueType])
+
+		// If no val was passed, use the default flagArg that is already in the taskFlagsMap.
+		if val != "" {
+			flagArg := FlagArg{
+				// Return the raw string val passed.
+				Value: val,
+				BoolVal: func() *bool {
+					if taskFlag.ValueType != BoolTypeFlag {
+						panic(flagValErrMsg)
+					}
+
+					// Support flags that are passed either like `--flag=true` or `--flag="true"`.
+					strippedKey := stripWrappingQuotations(val)
+					parsedBool, err := strconv.ParseBool(strippedKey)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass a bool as the value. Err: %s", err))
+					}
+
+					return &parsedBool
+				},
+				DurationVal: func() *time.Duration {
+					if taskFlag.ValueType != DurationTypeFlag {
+						panic(flagValErrMsg)
+					}
+
+					// Support flags that are passed either like `--flag=100ms` or `--flag="100ms"`.
+					strippedKey := stripWrappingQuotations(val)
+					duration, err := time.ParseDuration(strippedKey)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass a duration as the value. Err: %s", err))
+					}
+
+					return &duration
+				},
+				IntVal: func() *int {
+					if taskFlag.ValueType != IntTypeFlag {
+						panic(flagValErrMsg)
+					}
+
+					// Support flags that are passed either like `--flag=1` or `--flag="1"`.
+					strippedKey := stripWrappingQuotations(val)
+					int, err := strconv.Atoi(strippedKey)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass an int as the value. Err: %s", err))
+					}
+					return &int
+				},
+				Float64Val: func() *float64 {
+					if taskFlag.ValueType != Float64TypeFlag {
+						panic(flagValErrMsg)
+					}
+
+					// Support flags that are passed either like `--flag=1.3` or `--flag="1.3"`.
+					strippedKey := stripWrappingQuotations(val)
+
+					float, err := strconv.ParseFloat(strippedKey, 64)
+					if err != nil {
+						panic(fmt.Sprintf("Please pass a float64 as the value. Err: %s", err))
+					}
+					return &float
+				},
+				StringVal: func() *string {
+					if taskFlag.ValueType != StringTypeFlag {
+						panic(flagValErrMsg)
+					}
+
+					// Support flags that are passed either like `--flag=val` or `--flag="val"`.
+					strippedStr := stripWrappingQuotations(val)
+					return &strippedStr
+				},
+			}
+
+			taskFlagsMap[key] = flagArg
+			// Allow readers to index into flag map via either LongName or ShortName
+			// regardless of which arg was passed in if both names are available.
+			if len(key) == 1 && key != taskFlag.LongName && taskFlag.LongName != "" {
+				// If only one char was passed through, check whether a LongName is available
+				// and also register it in the map.
+				key = taskFlag.LongName
+				taskFlagsMap[key] = flagArg
+			} else if len(key) > 1 && key == taskFlag.LongName && taskFlag.ShortName != 0 {
+				// If >1 char was passed through, check whether a ShortName is available
+				// and also register it in the map.
+				key = string(taskFlag.ShortName)
+				taskFlagsMap[key] = flagArg
+			}
+		}
+	}
+
+	return taskFlagsMap
+}
+
+func stripWrappingQuotations(str string) string {
+	strippedVal := str
+	if len(str) >= 2 && strings.HasPrefix(str, "\"") && strings.HasSuffix(str, "\"") {
+		strippedVal = str[1 : len(str)-1]
+	}
+
+	return strippedVal
+}
+
+func (e *Executor) getVerifiedFlagKey(taskName string, flagKey string) (string, error) {
+	var strippedKey string
+	if strings.HasPrefix(flagKey, "--") {
+		// If the flag key is prefixed with "--", we expect it to be the flag LongName.
+		strippedKey = string(flagKey[2:])
+		if len(strippedKey) <= 1 {
+			return flagKey, errors.New(fmt.Sprintf("Unknown flag: `%s`", strippedKey))
+		}
+	} else if strings.HasPrefix(flagKey, "-") {
+		// If the flag key is prefixed with "-", we expect it to be the flag ShortName.
+		strippedKey = string(flagKey[1:])
+		if len(strippedKey) != 1 {
+			return flagKey, errors.New(fmt.Sprintf("Did you mean `--%s` (with two dashes)?", strippedKey))
+		}
+	} else {
+		// If the flag is not prefixed with any dashes, this is invalid syntax.
+		return flagKey, errors.New(fmt.Sprintf("LongName flags must be prefixed with `--`. ShortName flags must be prefixed with `-`"))
+	}
+
+	// Check that task is valid.
+	if _, ok := e.taskFlagsRegistry[taskName]; ok {
+		// Check that flag is supported.
+		if _, ok = e.taskFlagsRegistry[taskName][strippedKey]; ok {
+			return strippedKey, nil
+		}
+	}
+
+	return flagKey, errors.New(fmt.Sprintf("Unsupported flag: %s", flagKey))
+}
+
 // runPass kicks off tasks that are in an executable state.
 func (e *Executor) runPass() {
 	if e.ctx.Err() != nil {
@@ -302,7 +570,15 @@ func (e *Executor) runPass() {
 					var duration time.Duration
 					var err error
 
-					if task.Run != nil {
+					if task.RunWithFlags != nil {
+						taskFlagsMap := make(map[string]FlagArg)
+
+						if passedFlags, ok := e.taskFlagArgs[task.Name]; ok {
+							taskFlagsMap = e.parseTaskFlagsIntoMap(task.Name, passedFlags)
+						}
+						err = task.RunWithFlags(ctx, e.ShellRun, taskFlagsMap)
+						duration = time.Since(started)
+					} else if task.Run != nil {
 						err = task.Run(ctx, e.ShellRun)
 						duration = time.Since(started)
 					}

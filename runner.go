@@ -188,6 +188,14 @@ func Run(options ...RunOption) {
 		watchMode = watch
 	}
 
+	// Set task/option groups on executor
+	ExecutorOptions(func(e *Executor) {
+		e.taskFlagArgs = taskFlagGroups
+	})(runtime)
+	// Set supported task options registry on executor
+	ExecutorOptions(func(e *Executor) {
+		e.taskFlagsRegistry = runtime.registry.flagsByTask
+	})(runtime)
 	executorOptions := append([]ExecutorOption{WithWatchMode(watchMode)}, runtime.executorOptions...)
 	executor := NewExecutor(c, tasks, executorOptions...)
 
