@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,6 +72,21 @@ type WatcherEnhancer func(watcher.Watcher) watcher.Watcher
 var errUndefinedTaskName = errors.New("undefined task name")
 
 type ExecutorOption func(*Executor)
+
+const helpMsgTemplate = `
+⭐️ {{.TaskName}}
+{{if .TaskDescription}}
+  {{.TaskDescription}}{{end}}
+{{if eq (len .Flags) 0}}
+  No flags are supported.
+{{else}}
+  The following flags are supported:
+  {{range $flag := .Flags}}
+  ⛳️ {{if .LongName}}--{{.LongName}}{{end}}{{if .ShortName}}{{if .LongName}} | {{end}}-{{rtos .ShortName}}{{end}} [{{.ValueType}}]{{if not (eq .Default "")}} (Default Value: {{.Default}}){{end}}
+    {{.Description}}
+{{end}}
+{{end}}
+`
 
 var flagTypeToGetter = map[string]string{
 	StringTypeFlag:   "StringVal",
@@ -233,6 +250,25 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 	}
 
 	e.tasks = taskSet
+
+	// If "--help/-h" is passed to any of the desired tasks, generate and show
+	// help text without actually running any tasks.
+	var tasksWithHelpOption []string
+	for task := range e.tasks {
+		for _, optionArg := range e.taskFlagArgs[task.Name] {
+			if optionArg == "-h" || optionArg == "--help" {
+				tasksWithHelpOption = append(tasksWithHelpOption, task.Name)
+				break
+			}
+		}
+	}
+
+	if len(tasksWithHelpOption) != 0 {
+		for _, task := range tasksWithHelpOption {
+			e.showTaskFlagHelpText(task)
+		}
+		return nil
+	}
 
 	var errors error
 	// Run all onStartHooks before starting, after the DAG has been created.
@@ -541,6 +577,32 @@ func (e *Executor) getVerifiedFlagKey(taskName string, flagKey string) (string, 
 	}
 
 	return flagKey, errors.New(fmt.Sprintf("Unsupported flag: %s", flagKey))
+}
+
+func (e *Executor) showTaskFlagHelpText(taskName string) {
+	task := e.taskRegistry[taskName]
+	taskFlags := task.Flags
+	helpTemplate := template.New("helpText")
+	helpTemplate = helpTemplate.Funcs(template.FuncMap{
+		"rtos": func(r rune) string { return string(r) },
+	})
+	helpTemplate, err := helpTemplate.Parse(helpMsgTemplate)
+	if err != nil {
+		fmt.Printf("There was an error generating the help text: %s", err)
+	}
+
+	err = helpTemplate.Execute(os.Stdout, struct {
+		TaskName        string
+		TaskDescription string
+		Flags           []TaskFlag
+	}{
+		TaskName:        taskName,
+		TaskDescription: task.Description,
+		Flags:           taskFlags,
+	})
+	if err != nil {
+		fmt.Printf("There was an error generating the help text: %s", err)
+	}
 }
 
 // runPass kicks off tasks that are in an executable state.
