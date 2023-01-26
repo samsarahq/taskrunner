@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,6 +72,14 @@ type WatcherEnhancer func(watcher.Watcher) watcher.Watcher
 var errUndefinedTaskName = errors.New("undefined task name")
 
 type ExecutorOption func(*Executor)
+
+const helpMsgTemplate = `
+"{{ .TaskName }}" supports the following options:
+{{range $flag := .Flags }}
+  {{if .LongName}}--{{.LongName}}{{end}}{{if .ShortName}}{{if .LongName}} | {{end}}-{{rtos .ShortName}}{{end}}{{if .ValueType}}{{if .ShortName}} {{end}}[{{.ValueType}}]{{end}}
+    {{.Description}}
+{{end}}
+`
 
 var flagTypeToGetter = map[string]string{
 	StringTypeFlag: "StringVal",
@@ -402,6 +412,32 @@ func (e *Executor) getVerifiedFlagKey(taskName string, flagKey string) (string, 
 	return flagKey, errors.New(fmt.Sprintf("Unsupported flag: %s", flagKey))
 }
 
+func (e *Executor) showTaskFlagHelpText(taskName string) {
+	taskFlags := e.taskRegistry[taskName].Flags
+	helpTemplate := template.New("helpText")
+	helpTemplate = helpTemplate.Funcs(template.FuncMap{
+		"rtos": func(r rune) string { return string(r) },
+	})
+	helpTemplate, err := helpTemplate.Parse(helpMsgTemplate)
+	if err != nil {
+		// Handle error
+		fmt.Printf("There was an error parsing the template: %s", err)
+	}
+
+	err = helpTemplate.Execute(os.Stdout, struct {
+		TaskName string
+		Flags    []TaskFlag
+	}{
+		TaskName: taskName,
+		Flags:    taskFlags,
+	})
+	if err != nil {
+		// Handle error
+		fmt.Printf("There was an error executing the template: %s", err)
+
+	}
+}
+
 // runPass kicks off tasks that are in an executable state.
 func (e *Executor) runPass() {
 	if e.ctx.Err() != nil {
@@ -410,6 +446,22 @@ func (e *Executor) runPass() {
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	// If "--help/-h" is passed, show help text for first task
+	// it is passed to.
+	var taskWithHelpOption string
+	for task := range e.tasks {
+		for _, optionArg := range e.taskFlagArgs[task.Name] {
+			if optionArg == "-h" || optionArg == "--help" {
+				taskWithHelpOption = task.Name
+				break
+			}
+		}
+	}
+	if taskWithHelpOption != "" {
+		e.showTaskFlagHelpText(taskWithHelpOption)
+		return
+	}
 
 	for task, execution := range e.tasks {
 		if execution.ShouldExecute() {
