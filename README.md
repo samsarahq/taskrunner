@@ -35,8 +35,39 @@ import (
 // Run a simple task.
 var myTask = taskrunner.Add(&taskrunner.Task{
 	Name:         "my/task",
-	Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+	RunWithFlags: func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
 		return shellRun(ctx, `echo Hello World`)
+	},
+})
+
+// Run a task which performs different behaviour based on
+// the flags passed to it via CLI.
+var myTaskWithFlags = taskrunner.Add(&taskrunner.Task{
+	Name:         "my/go/task",
+	Description:  "Run a go file and re-run when it changes",
+	RunWithFlags: func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
+		// Note: You can also check the ShortName string i.e. flags["b"].
+		if flag, ok := flags["boolFlag"]; ok {
+			// Note: FlagArgs include helper fns: BoolVal, StringVal, IntVal, Float64Val
+			// and DurationVal. They cast the arg passed via CLI into the appropriate
+			// type based on the flag ValueType.
+			// The raw value passed via CLI is also avaialble via the FlagArg helper fn Value. 
+			if flag.BoolVal() {
+				return ShellRun(ctx, `echo Hello World: 1`)
+			}
+		}
+			
+		return shellRun(ctx, `echo Hello World: 2`)
+	},
+	Flags: []taskrunner.TaskFlag{
+		{
+			Description: "Passing the `--boolFlag/-b` flag has X effect on the task.",
+			LongName: "boolFlag",
+			ShortName: []rune("b")[0],
+			Default: "false",
+			// Note: BoolTypeFlag, StringTypeFlag, Float64TypeFlag and DurationFlag.
+			ValueType: taskrunner.BoolTypeFlag,
+		}
 	},
 })
 
@@ -44,7 +75,7 @@ var myTask = taskrunner.Add(&taskrunner.Task{
 var myDependentTask = taskrunner.Add(&taskrunner.Task{
 	Name:         "my/dependent/task",
 	Dependencies: []*taskrunner.Task{myTask},
-	Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+	RunWithFlags: func(ctx context.Context, shellRun shell.ShellRun flags map[string]taskrunner.FlagArg) error {
 		return shellRun(ctx, `echo Hello Again`)
 	},
 })
@@ -55,7 +86,7 @@ var myDependentTask = taskrunner.Add(&taskrunner.Task{
 var myGoTask = taskrunner.Add(&taskrunner.Task{
 	Name:         "my/go/task",
 	Description:  "Run a go file and re-run when it changes",
-	Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+	RunWithFlags: func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
 		return shellRun(ctx, `cd src/example && go run .`)
 	},
 	Sources: []string{"src/example/**/*.go"},
@@ -68,7 +99,7 @@ var builder = goextensions.NewGoBuilder()
 
 var myWrappedTask = taskrunner.Add(&taskrunner.Task{
 	Name: "my/wrapped/task",
-        Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+        RunWithFlags: func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
 		return shellRun(ctx, `example`)
 	},
 }, builder.WrapWithGoBuild("example"))
