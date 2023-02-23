@@ -96,6 +96,14 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 				"mock/task/1": {"--longInvalidFlag"},
 			},
 		},
+		{
+			// Validation for supported tasks happens in the executor.
+			description: "Should include unsupported task names in group",
+			cliArgs:     []string{"thisisnotarealtask", "--longInvalidFlag"},
+			expectedGroups: map[string][]string{
+				"thisisnotarealtask": {"--longInvalidFlag"},
+			},
+		},
 	}
 
 	runner := newRuntime()

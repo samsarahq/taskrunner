@@ -91,24 +91,19 @@ func (r *Runtime) groupTaskAndFlagArgs(args []string) map[string][]string {
 	var currTaskName string
 	var currFlagsList []string
 	for _, arg := range args {
-		// Check task registry to figure out whether the arg is a task or a flag.
-		val, ok := r.registry.definitions[arg]
-		if ok {
-			if currTaskName == "" {
-				// If this is the first task, we've found, set the currTaskName.
-				currTaskName = val.Name
-			} else {
-				// If this is a new task we've found, store the flags we've collected for prev task.
-				flagArgsPerTask[currTaskName] = currFlagsList
-				currTaskName = val.Name
-				currFlagsList = []string{}
-			}
-		} else if currTaskName != "" {
-			// If we have identified a current task and we are sure the arg is a flag,
+		if currTaskName != "" && (strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--")) {
+			// If we have identified a current task and we think the arg is a flag,
 			// add it to the list of flags we are storing for the current task.
 			// Notably, if the first flags are options to taskrunner, currTaskName will be ""
 			// and we will not group those flags with any tasks.
 			currFlagsList = append(currFlagsList, arg)
+		} else {
+			if currTaskName != "" {
+				// If this arg is a new task, store the flags we've collected for prev task.
+				flagArgsPerTask[currTaskName] = currFlagsList
+			}
+			currTaskName = arg
+			currFlagsList = []string{}
 		}
 	}
 
