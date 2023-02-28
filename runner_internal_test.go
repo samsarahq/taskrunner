@@ -113,9 +113,18 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 
 	for _, tc := range testCases {
 		taskFlagGroups := runner.groupTaskAndFlagArgs(tc.cliArgs)
+		var expectedTaskGroups []string
+		for key := range tc.expectedGroups {
+			expectedTaskGroups = append(expectedTaskGroups, key)
+		}
+
+		var taskGroups []string
 		for key, val := range taskFlagGroups {
+			taskGroups = append(taskGroups, key)
 			flags := tc.expectedGroups[key]
 			assert.ElementsMatch(t, flags, val)
 		}
+
+		assert.ElementsMatch(t, expectedTaskGroups, taskGroups)
 	}
 }
