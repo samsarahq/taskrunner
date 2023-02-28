@@ -91,12 +91,15 @@ func (r *Runtime) groupTaskAndFlagArgs(args []string) map[string][]string {
 	var currTaskName string
 	var currFlagsList []string
 	for _, arg := range args {
-		if currTaskName != "" && (strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--")) {
+		isFlag := strings.HasPrefix(arg, "-") || strings.HasPrefix(arg, "--")
+		if isFlag {
 			// If we have identified a current task and we think the arg is a flag,
 			// add it to the list of flags we are storing for the current task.
 			// Notably, if the first flags are options to taskrunner, currTaskName will be ""
 			// and we will not group those flags with any tasks.
-			currFlagsList = append(currFlagsList, arg)
+			if currTaskName != "" {
+				currFlagsList = append(currFlagsList, arg)
+			}
 		} else {
 			if currTaskName != "" {
 				// If this arg is a new task, store the flags we've collected for prev task.
