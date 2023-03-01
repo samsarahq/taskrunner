@@ -82,10 +82,18 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 			},
 		},
 		{
-			description: "Should exclude tasks passed directly to taskrunner",
-			cliArgs:     []string{"--config", "mock/task/1", "--longFlagA"},
+			description: "Should exclude flags and flag args passed directly to taskrunner",
+			cliArgs:     []string{"--config", "pathtoconfig", "--listAll", "--watch", "mock/task/1", "--longFlagA"},
 			expectedGroups: map[string][]string{
 				"mock/task/1": {"--longFlagA"},
+			},
+		},
+		{
+			description: "Should exclude unsupported tasks and any flags passed to it",
+			cliArgs:     []string{"mock/task/1", "--longFlagA", "thisisnotarealtask", "--longInvalidFlag", "mock/task/2", "-c='test'"},
+			expectedGroups: map[string][]string{
+				"mock/task/1": {"--longFlagA"},
+				"mock/task/2": {"-c='test'"},
 			},
 		},
 		{
@@ -94,14 +102,6 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 			cliArgs:     []string{"mock/task/1", "--longInvalidFlag"},
 			expectedGroups: map[string][]string{
 				"mock/task/1": {"--longInvalidFlag"},
-			},
-		},
-		{
-			// Validation for supported tasks happens in the executor.
-			description: "Should include unsupported task names in group",
-			cliArgs:     []string{"thisisnotarealtask", "--longInvalidFlag"},
-			expectedGroups: map[string][]string{
-				"thisisnotarealtask": {"--longInvalidFlag"},
 			},
 		},
 	}

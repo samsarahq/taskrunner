@@ -101,12 +101,18 @@ func (r *Runtime) groupTaskAndFlagArgs(args []string) map[string][]string {
 				currFlagsList = append(currFlagsList, arg)
 			}
 		} else {
+			// If this arg is a new task, store the flags we've collected for prev task.
 			if currTaskName != "" {
-				// If this arg is a new task, store the flags we've collected for prev task.
 				flagArgsPerTask[currTaskName] = currFlagsList
+				currTaskName = ""
+				currFlagsList = []string{}
 			}
-			currTaskName = arg
-			currFlagsList = []string{}
+
+			// If the arg is a valid task, start tracking the taks/flag group.
+			if _, ok := r.registry.definitions[arg]; ok {
+				currTaskName = arg
+				currFlagsList = []string{}
+			}
 		}
 	}
 
