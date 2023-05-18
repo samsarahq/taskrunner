@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 )
 
 // LoggerFromContext gets the logger from the context.
@@ -45,6 +46,8 @@ func (l *eventLogger) Write(p []byte) (int, error) {
 func Logf(ctx context.Context, f string, args ...interface{}) {
 	logger := LoggerFromContext(ctx)
 	if logger == nil {
+		fmt.Fprintln(os.Stderr, "🟡 Warning: There was no logger found in context, so falling back to `fmt.Printf`")
+		fmt.Printf(f, args...)
 		return
 	}
 
