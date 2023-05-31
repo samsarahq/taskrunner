@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/samsarahq/taskrunner/shell"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/samsarahq/taskrunner/shell"
 )
 
 func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
@@ -54,9 +55,10 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 	}
 
 	testCases := []struct {
-		description    string
-		cliArgs        []string
-		expectedGroups map[string][]string
+		description               string
+		cliArgs                   []string
+		expectedGroups            map[string][]string
+		expectedFoundUnknownTasks bool
 	}{
 		{
 			description: "Should group single flag to single task",
@@ -82,19 +84,13 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 			},
 		},
 		{
-			description: "Should exclude flags and flag args passed directly to taskrunner",
-			cliArgs:     []string{"--config", "pathtoconfig", "--listAll", "--watch", "mock/task/1", "--longFlagA"},
-			expectedGroups: map[string][]string{
-				"mock/task/1": {"--longFlagA"},
-			},
-		},
-		{
 			description: "Should exclude unsupported tasks and any flags passed to it",
 			cliArgs:     []string{"mock/task/1", "--longFlagA", "thisisnotarealtask", "--longInvalidFlag", "mock/task/2", "-c='test'"},
 			expectedGroups: map[string][]string{
 				"mock/task/1": {"--longFlagA"},
 				"mock/task/2": {"-c='test'"},
 			},
+			expectedFoundUnknownTasks: true,
 		},
 		{
 			// Validation for supported flags happens in the executor.
@@ -112,19 +108,22 @@ func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 	runner.registry.Add(mockTask3)
 
 	for _, tc := range testCases {
-		taskFlagGroups := runner.groupTaskAndFlagArgs(tc.cliArgs)
-		var expectedTaskGroups []string
-		for key := range tc.expectedGroups {
-			expectedTaskGroups = append(expectedTaskGroups, key)
-		}
+		t.Run(tc.description, func(t *testing.T) {
+			taskFlagGroups, foundUnknownTasks := runner.groupTaskAndFlagArgs(tc.cliArgs)
+			var expectedTaskGroups []string
+			for key := range tc.expectedGroups {
+				expectedTaskGroups = append(expectedTaskGroups, key)
+			}
 
-		var taskGroups []string
-		for key, val := range taskFlagGroups {
-			taskGroups = append(taskGroups, key)
-			flags := tc.expectedGroups[key]
-			assert.ElementsMatch(t, flags, val)
-		}
+			var taskGroups []string
+			for key, val := range taskFlagGroups {
+				taskGroups = append(taskGroups, key)
+				flags := tc.expectedGroups[key]
+				assert.ElementsMatch(t, flags, val)
+			}
 
-		assert.ElementsMatch(t, expectedTaskGroups, taskGroups)
+			assert.ElementsMatch(t, expectedTaskGroups, taskGroups)
+			assert.Equal(t, tc.expectedFoundUnknownTasks, foundUnknownTasks)
+		})
 	}
 }
