@@ -108,10 +108,13 @@ func (r *Runtime) groupTaskAndFlagArgs(args []string) map[string][]string {
 				currFlagsList = []string{}
 			}
 
-			// If the arg is a valid task, start tracking the taks/flag group.
+			// If the arg is a valid task, start tracking the task/flag group.
 			if _, ok := r.registry.definitions[arg]; ok {
 				currTaskName = arg
 				currFlagsList = []string{}
+			} else {
+				log.Printf("Unrecognized task: %s, ignoring it and following flags\n", arg)
+				// Note that in this case, currTaskName must be "" to ignore following flags.
 			}
 		}
 	}
@@ -142,12 +145,15 @@ func Run(options ...RunOption) {
 	} else {
 		c, err = config.ReadConfig(configFile)
 	}
-
 	if err != nil {
-		log.Fatalf("config error: unable to read config:\n%v\n", err)
+		log.Fatalf("Error: unable to read config:\n%v\n", err)
 	}
+	log.Printf("Using config at %s\n", c.ConfigPath)
 
 	tasks := runtime.registry.Tasks()
+	if len(tasks) == 0 {
+		log.Fatalln("Error: no task definitions found.")
+	}
 
 	if listTasks && listAllTasks {
 		log.Fatalf("--list and --listAll cannot be specified at the same time. Please only use one.")
@@ -178,7 +184,6 @@ func Run(options ...RunOption) {
 		return
 	}
 
-	log.Println("Using config", c.ConfigPath)
 	taskFlagGroups := runtime.groupTaskAndFlagArgs(os.Args[1:])
 	var desiredTasks []string
 	for taskName := range taskFlagGroups {
@@ -186,11 +191,12 @@ func Run(options ...RunOption) {
 	}
 	var watchMode bool
 	if len(desiredTasks) == 0 {
-		desiredTasks = c.DesiredTasks
-		watchMode = !nonInteractive
+		log.Fatalln("Error: invalid target task(s)")
 	} else {
 		watchMode = watch
 	}
+	log.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
+	log.Printf("Watch mode: %t\n", watchMode)
 
 	// Set task/option groups on executor
 	ExecutorOptions(func(e *Executor) {
@@ -202,12 +208,6 @@ func Run(options ...RunOption) {
 	})(runtime)
 	executorOptions := append([]ExecutorOption{WithWatchMode(watchMode)}, runtime.executorOptions...)
 	executor := NewExecutor(c, tasks, executorOptions...)
-
-	if len(tasks) == 0 {
-		log.Fatalln("No tasks specified")
-	}
-	log.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
-	log.Printf("Watch mode: %t", watchMode)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	onInterruptSignal(cancel)
