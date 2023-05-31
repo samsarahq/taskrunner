@@ -22,8 +22,8 @@ require (
 	github.com/stretchr/testify v1.2.3-0.20181014000028-04af85275a5c
 	go.uber.org/atomic v1.3.3-0.20181018215023-8dc6146f7569 // indirect
 	go.uber.org/multierr v1.1.1-0.20180122172545-ddea229ff1df
-	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
-	golang.org/x/text v0.3.1-0.20181030141323-6f44c5a2ea40 // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/text v0.3.8 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	mvdan.cc/sh v2.5.1-0.20180917103936-65d8e2a4b156+incompatible
 )

@@ -1,6 +1,3 @@
-# github.com/buildkite/terminal v3.1.0+incompatible
-## explicit
-github.com/buildkite/terminal
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -14,30 +11,8 @@ github.com/gdamore/encoding
 ## explicit
 github.com/gdamore/tcell
 github.com/gdamore/tcell/terminfo
-# github.com/gogo/protobuf v1.3.1
-## explicit
-github.com/gogo/protobuf/gogoproto
-github.com/gogo/protobuf/proto
-github.com/gogo/protobuf/protoc-gen-gogo/descriptor
-github.com/gogo/protobuf/sortkeys
-github.com/gogo/protobuf/types
 # github.com/google/go-cmp v0.4.1
 ## explicit
-# github.com/gorilla/mux v1.6.3-0.20181030152528-3d80bc801bb0
-## explicit
-github.com/gorilla/mux
-# github.com/gorilla/websocket v1.2.1-0.20180605202552-5ed622c449da
-## explicit
-github.com/gorilla/websocket
-# github.com/graphql-go/graphql v0.7.6-0.20180717235650-bce6c5b4b8e2
-## explicit
-github.com/graphql-go/graphql/gqlerrors
-github.com/graphql-go/graphql/language/ast
-github.com/graphql-go/graphql/language/kinds
-github.com/graphql-go/graphql/language/lexer
-github.com/graphql-go/graphql/language/location
-github.com/graphql-go/graphql/language/parser
-github.com/graphql-go/graphql/language/source
 # github.com/kr/pretty v0.2.0
 ## explicit
 # github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348
@@ -66,8 +41,6 @@ github.com/mattn/go-zglob/fastwalk
 # github.com/mitchellh/go-wordwrap v1.0.0
 ## explicit
 github.com/mitchellh/go-wordwrap
-# github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
-## explicit
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
@@ -75,20 +48,6 @@ github.com/pmezard/go-difflib/difflib
 ## explicit
 github.com/samsarahq/go/oops
 github.com/samsarahq/go/snapshotter
-# github.com/samsarahq/thunder v0.5.0
-## explicit
-github.com/samsarahq/thunder/batch
-github.com/samsarahq/thunder/concurrencylimiter
-github.com/samsarahq/thunder/diff
-github.com/samsarahq/thunder/graphql
-github.com/samsarahq/thunder/graphql/introspection
-github.com/samsarahq/thunder/graphql/schemabuilder
-github.com/samsarahq/thunder/internal
-github.com/samsarahq/thunder/internal/filter
-github.com/samsarahq/thunder/reactive
-github.com/samsarahq/thunder/thunderpb
-# github.com/satori/go.uuid v1.2.0
-## explicit
 # github.com/smartystreets/goconvey v1.6.4
 ## explicit
 # github.com/stretchr/testify v1.2.3-0.20181014000028-04af85275a5c
@@ -100,24 +59,24 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.1.1-0.20180122172545-ddea229ff1df
 ## explicit
 go.uber.org/multierr
-# golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+# golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20190311183353-d8887717615a
-golang.org/x/net/context
-# golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
+# golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae
+# golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.1-0.20181030141323-6f44c5a2ea40
+# golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+golang.org/x/term
+# golang.org/x/text v0.3.8
 ## explicit
 golang.org/x/text/encoding
 golang.org/x/text/encoding/internal/identifier
 golang.org/x/text/transform
 # gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
-## explicit
-# gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 ## explicit
 # mvdan.cc/sh v2.5.1-0.20180917103936-65d8e2a4b156+incompatible
 ## explicit
