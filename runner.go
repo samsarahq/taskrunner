@@ -24,6 +24,15 @@ var (
 	describeTasks  bool
 )
 
+var logger RunnerLogger = log.New(os.Stderr, "", log.LstdFlags)
+
+type RunnerLogger interface {
+	Printf(format string, v ...interface{})
+	Println(v ...interface{})
+	Fatalf(format string, v ...interface{})
+	Fatalln(v ...interface{})
+}
+
 // Runtime represents the external interface of an Executor's runtime. It is how taskrunner
 // extensions can register themselves to taskrunner's lifecycle.
 type Runtime struct {
@@ -118,7 +127,7 @@ func (r *Runtime) groupTaskAndFlagArgs(args []string) (map[string][]string, bool
 				currFlagsList = []string{}
 			} else {
 				foundInvalidTasks = true
-				log.Printf("Unrecognized task: %s, ignoring it and following flags\n", arg)
+				logger.Printf("Unrecognized task: %s, ignoring it and following flags\n", arg)
 				// Note that in this case, currTaskName must be "" to ignore following flags.
 			}
 		}
@@ -151,17 +160,20 @@ func Run(options ...RunOption) {
 		c, err = config.ReadConfig(configFile)
 	}
 	if err != nil {
-		log.Fatalf("Error: unable to read config: %v\n", err)
+		logger.Fatalf("Error: unable to read config: %v\n", err)
+		return
 	}
-	log.Printf("Using config at %s\n", c.ConfigPath)
+	logger.Printf("Using config at %s\n", c.ConfigPath)
 
 	tasks := runtime.registry.Tasks()
 	if len(tasks) == 0 {
-		log.Fatalln("Error: no task definitions found.")
+		logger.Fatalln("Error: no task definitions found.")
+		return
 	}
 
 	if listTasks && listAllTasks {
-		log.Fatalf("--list and --listAll cannot be specified at the same time. Please only use one.")
+		logger.Fatalf("--list and --listAll cannot be specified at the same time. Please only use one.")
+		return
 	}
 
 	if listTasks || listAllTasks {
@@ -184,7 +196,8 @@ func Run(options ...RunOption) {
 			fmt.Fprintf(w, "\t%s\t%s\n", task.Name, task.Description)
 		}
 		if err := w.Flush(); err != nil {
-			log.Fatalf("unable to flush tabwriter: \n%v\n", err)
+			logger.Fatalf("unable to flush tabwriter: \n%v\n", err)
+			return
 		}
 		return
 	}
@@ -198,14 +211,15 @@ func Run(options ...RunOption) {
 	watchMode := watch
 	if len(desiredTasks) == 0 {
 		if foundInvalidTasks { // tasks were specified, but all invalid
-			log.Fatalln("Error: invalid target task(s)")
+			logger.Fatalln("Error: invalid target task(s)")
+			return
 		} else { // no tasks were specified
 			desiredTasks = c.DesiredTasks
 			watchMode = !nonInteractive
 		}
 	}
-	log.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
-	log.Printf("Watch mode: %t\n", watchMode)
+	logger.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
+	logger.Printf("Watch mode: %t\n", watchMode)
 
 	// Set task/option groups on executor
 	ExecutorOptions(func(e *Executor) {
@@ -244,6 +258,7 @@ func Run(options ...RunOption) {
 	})
 
 	if err := g.Wait(); err != nil {
-		log.Fatalf("run error:\n%v\n", err)
+		logger.Fatalf("run error:\n%v\n", err)
+		return
 	}
 }
