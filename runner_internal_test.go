@@ -2,12 +2,96 @@ package taskrunner
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/samsarahq/taskrunner/shell"
 )
+
+// MockRunnerLogger is a mock RunnerLogger implementation that
+// tracks whether a fatal method was called. Not thread-safe, and
+// a separate instance must be used for each test.
+type MockRunnerLogger struct {
+	fatal bool
+}
+
+func (l *MockRunnerLogger) Printf(format string, v ...interface{}) {}
+func (l *MockRunnerLogger) Println(v ...interface{})               {}
+func (l *MockRunnerLogger) Fatalf(format string, v ...interface{}) {
+	l.fatal = true
+}
+func (l *MockRunnerLogger) Fatalln(v ...interface{}) {
+	l.fatal = true
+}
+
+func TestRunnerRun_FatalScenarios(t *testing.T) {
+	// setup mock config and task
+	testConfigFile := "config/testdata/base.taskrunner.json"
+	mockRunWithFlags := func(ctx context.Context, shellRun shell.ShellRun, flags map[string]FlagArg) error {
+		return nil
+	}
+	mockTask := &Task{
+		Name:         "basic", // must match a task defined in "desiredTasks" of the config file.
+		RunWithFlags: mockRunWithFlags,
+	}
+
+	testCases := []struct {
+		description   string
+		tasks         []*Task
+		cliArgs       []string // the first arg should be the command, which is irrelevant for testing.
+		expectedFatal bool
+	}{
+		{
+			description:   "Fatals on invalid config path",
+			cliArgs:       []string{"", "--config", "unknownPath"},
+			expectedFatal: true,
+		},
+		{
+			description:   "Fatals on no registered tasks",
+			cliArgs:       []string{"", "--config", testConfigFile},
+			expectedFatal: true,
+		},
+		{
+			description:   "Fatals when -list and -listAll are both specified",
+			tasks:         []*Task{mockTask},
+			cliArgs:       []string{"", "--config", testConfigFile, "--list", "--listAll"},
+			expectedFatal: true,
+		},
+		{
+			description:   "Does not fatal when no tasks are specified",
+			tasks:         []*Task{mockTask},
+			cliArgs:       []string{"", "--config", testConfigFile, "--non-interactive"}, // non-interactive mode to ensure test exits when task completes
+			expectedFatal: false,
+		},
+		{
+			description:   "Fatals when task is specified but unknown",
+			tasks:         []*Task{mockTask},
+			cliArgs:       []string{"", "--config", testConfigFile, "unknown/task", "--someFlag"},
+			expectedFatal: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			// override logger
+			mockLogger := &MockRunnerLogger{}
+			logger = mockLogger
+
+			// reset registry for each test
+			DefaultRegistry = NewRegistry()
+			for _, task := range tc.tasks {
+				DefaultRegistry.Add(task)
+			}
+
+			// run command and assert fatal status
+			os.Args = tc.cliArgs
+			Run()
+			assert.Equal(t, tc.expectedFatal, mockLogger.fatal, "fatal called")
+		})
+	}
+}
 
 func TestRunnerGroupTaskAndFlagArgs(t *testing.T) {
 	mockRunWithFlags := func(ctx context.Context, shellRun shell.ShellRun, flags map[string]FlagArg) error {
