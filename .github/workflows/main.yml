@@ -21,12 +21,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Go Get
-        run: |
-          go get
-          go get github.com/mattn/goveralls
       - name: Test
         run: go test -v ./... -coverprofile=coverage.out -covermode=atomic -bench=./...
+      - name: Install Goveralls # this step must come after running the tests, to prevent dependency version conflicts
+        run: |
+          go get github.com/mattn/goveralls
       - name: Send Code Coverage
         uses: shogo82148/actions-goveralls@v1
         with:
