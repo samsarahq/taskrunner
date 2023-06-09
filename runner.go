@@ -52,8 +52,21 @@ func newRuntime() *Runtime {
 	}
 
 	r.flags.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: taskrunner [task...]\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "[Usage]\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        taskrunner [task...]\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        taskrunner [task] --help\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        taskrunner [option]\n")
+		fmt.Fprintln(flag.CommandLine.Output())
+		fmt.Fprintf(flag.CommandLine.Output(), "[Options]\n")
 		r.flags.PrintDefaults()
+		fmt.Fprintln(flag.CommandLine.Output())
+		fmt.Fprintf(flag.CommandLine.Output(), "[Example Usage]\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask`\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask ---help`\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask1 mytask2`\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask --mode=dev`\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner --config ./customconfig.json mytask --mode=dev`\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner --list`\n")
 	}
 	r.flags.StringVar(&configFile, "config", "", "Configuration file to use")
 	r.flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode (only applies when running the default set of tasks)")
