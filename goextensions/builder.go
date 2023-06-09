@@ -219,20 +219,42 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 		newTask := *task
 
 		buildBinder := newBuildBinder(pkg)
-		newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
-			if err := builder.Build(ctx, shellRun, pkg); err != nil {
-				return err
-			}
+		// task.Run is deprecated, so default to defining
+		// newTask.RunWithFlags if task.Run is not defined.
+		// If both Run and RunWithFlags are defined, an error will
+		// be thrown in the from the registry when the task is added.
+		if task.Run != nil {
+			newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
+				if err := builder.Build(ctx, shellRun, pkg); err != nil {
+					return err
+				}
 
-			if err := buildBinder.saveDependencies(ctx, builder.ModuleRoot, shellRun); err != nil {
-				return err
-			}
+				if err := buildBinder.saveDependencies(ctx, builder.ModuleRoot, shellRun); err != nil {
+					return err
+				}
 
-			if task.Run != nil {
-				return task.Run(ctx, shellRun)
-			}
+				if task.Run != nil {
+					return task.Run(ctx, shellRun)
+				}
 
-			return nil
+				return nil
+			}
+		} else {
+			newTask.RunWithFlags = func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
+				if err := builder.Build(ctx, shellRun, pkg); err != nil {
+					return err
+				}
+
+				if err := buildBinder.saveDependencies(ctx, builder.ModuleRoot, shellRun); err != nil {
+					return err
+				}
+
+				if task.RunWithFlags != nil {
+					return task.RunWithFlags(ctx, shellRun, flags)
+				}
+
+				return nil
+			}
 		}
 
 		newTask.ShouldInvalidate = func(event taskrunner.InvalidationEvent) bool {
