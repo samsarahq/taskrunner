@@ -86,6 +86,10 @@ func (w *PrefixedWriter) Write(p []byte) (n int, err error) {
 	h.Write([]byte(w.Prefix))
 	c := colors[int(h.Sum32())%len(colors)]
 
+	// If we format p as a JSON, it's possible that the number of bytes can
+	// change.
+	// The writer expects us to return the original length of p.
+	origLen := len(p)
 	var jsonObj interface{}
 	err = json.Unmarshal([]byte(p), &jsonObj)
 	if err == nil {
@@ -106,7 +110,7 @@ func (w *PrefixedWriter) Write(p []byte) (n int, err error) {
 	}
 
 	_, err = w.Writer.Write([]byte(strings.Join(prefixed, "\n") + "\n"))
-	return len(p), err
+	return origLen, err
 }
 
 func leftPad(s string, l int) string {
