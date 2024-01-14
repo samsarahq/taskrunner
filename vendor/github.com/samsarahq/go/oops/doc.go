@@ -1,28 +1,29 @@
 // Package oops adds detailed stacktraces to your Go errors.
 //
-// To use the oops package, calls oops.Errorf when creating a new error, and
+// To use the oops package, call oops.Errorf when creating a new error, and
 // oops.Wrapf when returning nested errors. To access the original error, use
 // oops.Cause. Each function in the callstack can add extra debugging
 // information to help you track down errors.
 //
 // An example error (from the program below) looks as follows:
-//   20 is too large!
 //
-//   main.Foo
-//     github.com/samsarahq/go/oops/example/main.go:12
-//   main.Legacy
-//     github.com/samsarahq/go/oops/example/main.go:19
-//   main.Bar: Legacy(20) didn't work
-//     github.com/samsarahq/go/oops/example/main.go:24
-//   main.Go.func1
-//     github.com/samsarahq/go/oops/example/main.go:35
+//	20 is too large!
 //
-//   main.Go: goroutine had a problem
-//     github.com/samsarahq/go/oops/example/main.go:38
-//   main.main
-//     github.com/samsarahq/go/oops/example/main.go:42
-//   runtime.main
-//     runtime/proc.go:185
+//	main.Foo
+//	  github.com/samsarahq/go/oops/example/main.go:12
+//	main.Legacy
+//	  github.com/samsarahq/go/oops/example/main.go:19
+//	main.Bar: Legacy(20) didn't work
+//	  github.com/samsarahq/go/oops/example/main.go:24
+//	main.Go.func1
+//	  github.com/samsarahq/go/oops/example/main.go:35
+//
+//	main.Go: goroutine had a problem
+//	  github.com/samsarahq/go/oops/example/main.go:38
+//	main.main
+//	  github.com/samsarahq/go/oops/example/main.go:42
+//	runtime.main
+//	  runtime/proc.go:185
 //
 // The first time oops.Errorf or oops.Wrapf is called, it captures a
 // stacktrace. To keep your stacktraces as detailed as possible, it is best to
@@ -36,49 +37,50 @@
 // well!
 //
 // Usage:
-//   package main
 //
-//   import (
-//     "fmt"
+//	package main
 //
-//     "github.com/samsarahq/go/oops"
-//   )
+//	import (
+//	  "fmt"
 //
-//   // Foo creates new errors using oops.Errorf.
-//   func Foo(i int) error {
-//     if i > 10 {
-//       return oops.Errorf("%d is too large!", i)
-//     }
-//     return nil
-//   }
+//	  "github.com/samsarahq/go/oops"
+//	)
 //
-//   // Legacy is old code that does not use oops.
-//   func Legacy(i int) error {
-//     return Foo(i)
-//   }
+//	// Foo creates new errors using oops.Errorf.
+//	func Foo(i int) error {
+//	  if i > 10 {
+//	    return oops.Errorf("%d is too large!", i)
+//	  }
+//	  return nil
+//	}
 //
-//   // Bar wraps errors using Wrapf.
-//   func Bar() error {
-//     if err := Legacy(20); err != nil {
-//       return oops.Wrapf(err, "Legacy(20) didn't work")
-//     }
-//     return nil
-//   }
+//	// Legacy is old code that does not use oops.
+//	func Legacy(i int) error {
+//	  return Foo(i)
+//	}
 //
-//   // Go wraps errors using Wrapf after receiving one from a channel!
-//   func Go() error {
-//     ch := make(chan error)
+//	// Bar wraps errors using Wrapf.
+//	func Bar() error {
+//	  if err := Legacy(20); err != nil {
+//	    return oops.Wrapf(err, "Legacy(20) didn't work")
+//	  }
+//	  return nil
+//	}
 //
-//     go func() {
-//       ch <- Bar()
-//     }()
+//	// Go wraps errors using Wrapf after receiving one from a channel!
+//	func Go() error {
+//	  ch := make(chan error)
 //
-//     return oops.Wrapf(<-ch, "goroutine had a problem")
-//   }
+//	  go func() {
+//	    ch <- Bar()
+//	  }()
 //
-//   func main() {
-//     if err := Go(); err != nil {
-//       fmt.Print(err)
-//     }
-//   }
+//	  return oops.Wrapf(<-ch, "goroutine had a problem")
+//	}
+//
+//	func main() {
+//	  if err := Go(); err != nil {
+//	    fmt.Print(err)
+//	  }
+//	}
 package oops

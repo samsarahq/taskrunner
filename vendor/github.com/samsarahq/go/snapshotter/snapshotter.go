@@ -18,7 +18,18 @@ type T interface {
 	Helper()
 }
 
-var rewrite = flag.Bool("rewriteSnapshots", false, "rewrite test data output")
+var rewriteFlag = flag.Bool("rewriteSnapshots", false, "Rewrite test data output. Should not be used with -rewriteWithFailOnDiff")
+var rewriteWithFailOnDiff = flag.Bool("rewriteWithFailOnDiff", false, "Rewrites the snapshot while still failing the test on diff. Should not be used with -rewriteSnapshots")
+
+func isRewrite() bool {
+	rewriteEnvVar := os.Getenv("REWRITE_SNAPSHOTS") == "1"
+	return rewriteEnvVar || *rewriteFlag
+}
+
+func isRewriteWithFailOnDiff() bool {
+	rewriteEnvVar := os.Getenv("REWRITE_WITH_FAIL_ON_DIFF") == "1"
+	return rewriteEnvVar || *rewriteWithFailOnDiff
+}
 
 func jsonRoundTrip(value interface{}) (interface{}, error) {
 	bytes, err := json.Marshal(value)
@@ -77,30 +88,49 @@ func (s *Snapshotter) Snapshot(name string, values ...interface{}) {
 	})
 }
 
+func (s *Snapshotter) rewrite(name string) {
+	// If there are no snapshots, then when rewriting, we want to remove the file if it exists.
+	if len(s.snapshots) == 0 {
+		if _, err := os.Stat(name); os.IsNotExist(err) {
+			return
+		}
+
+		// The file exists, so let's remove it.
+		if err := os.Remove(name); err != nil {
+			s.t.Errorf("failed to remove the existing snapshot file %s", name)
+		}
+		return
+	}
+	if err := os.MkdirAll("testdata", 0755); err != nil {
+		s.t.Errorf("error creating testdata directory: %s", err)
+		return
+	}
+	bytes, err := json.MarshalIndent(s.snapshots, "", "  ")
+	if err != nil {
+		s.t.Errorf("error marshaling snapshots: %s", err)
+		return
+	}
+	if err := ioutil.WriteFile(name, bytes, 0644); err != nil {
+		s.t.Errorf("error writing snapshots: %s", err)
+		return
+	}
+}
+
 // Verify finishes a snapshot test. It either compares the test output, or it
 // rewrites the test output.
 func (s *Snapshotter) Verify() {
 	s.t.Helper()
+	if isRewrite() && isRewriteWithFailOnDiff() {
+		s.t.Errorf("choose one of rewriteWithFailOnDiff and rewriteSnapshots, otherwise unexpected behavior can occur.")
+		return
+	}
 	nameSuffix := ""
 	if s.name != "" {
 		nameSuffix = "_" + strings.Replace(strings.Replace(s.name, "/", "-", -1), ":", "-", -1)
 	}
 	name := filepath.Join("testdata", strings.Replace(strings.Replace(s.t.Name(), "/", "-", -1), ":", "-", -1)+nameSuffix+".snapshots.json")
-	if *rewrite {
-		if err := os.MkdirAll("testdata", 0755); err != nil {
-			s.t.Errorf("error creating testdata directory: %s", err)
-			return
-		}
-		bytes, err := json.MarshalIndent(s.snapshots, "", "  ")
-		if err != nil {
-			s.t.Errorf("error marshaling snapshots: %s", err)
-			return
-		}
-		if err := ioutil.WriteFile(name, bytes, 0644); err != nil {
-			s.t.Errorf("error writing snapshots: %s", err)
-			return
-		}
-
+	if isRewrite() {
+		s.rewrite(name)
 	} else {
 		// When no snapshots file exists and no snapshots have been taken, do nothing.
 		if _, err := os.Stat(name); os.IsNotExist(err) && len(s.snapshots) == 0 {
@@ -116,6 +146,10 @@ func (s *Snapshotter) Verify() {
 		if err := json.Unmarshal(bytes, &expected); err != nil {
 			s.t.Errorf("error unmarshaling snapshots: %s", err)
 			return
+		}
+
+		if isRewriteWithFailOnDiff() {
+			s.rewrite(name)
 		}
 
 		actual := s.snapshots

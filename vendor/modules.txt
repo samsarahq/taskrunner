@@ -15,8 +15,8 @@ github.com/gdamore/tcell/terminfo
 ## explicit; go 1.8
 # github.com/kr/pretty v0.2.0
 ## explicit; go 1.12
-# github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348
-## explicit
+# github.com/kylelemons/godebug v1.1.0
+## explicit; go 1.11
 github.com/kylelemons/godebug/diff
 github.com/kylelemons/godebug/pretty
 # github.com/lucasb-eyer/go-colorful v0.0.0-20181028223441-12d3b2882a08
@@ -45,14 +45,16 @@ github.com/mitchellh/go-wordwrap
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/samsarahq/go v0.0.0-20191220233105-8077c9fbaed5
-## explicit
+# github.com/samsarahq/go v0.0.0-20230622164605-46203ca3a6d8
+## explicit; go 1.17
 github.com/samsarahq/go/oops
 github.com/samsarahq/go/snapshotter
 # github.com/smartystreets/goconvey v1.6.4
 ## explicit
-# github.com/stretchr/testify v1.2.3-0.20181014000028-04af85275a5c
-## explicit
+# github.com/stretchr/objx v0.5.0
+## explicit; go 1.12
+# github.com/stretchr/testify v1.8.4
+## explicit; go 1.20
 github.com/stretchr/testify/assert
 # go.uber.org/atomic v1.3.3-0.20181018215023-8dc6146f7569
 ## explicit
@@ -80,6 +82,9 @@ golang.org/x/text/encoding/internal/identifier
 golang.org/x/text/transform
 # gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 ## explicit
+# gopkg.in/yaml.v3 v3.0.1
+## explicit
+gopkg.in/yaml.v3
 # mvdan.cc/sh v2.5.1-0.20180917103936-65d8e2a4b156+incompatible
 ## explicit
 mvdan.cc/sh/expand
