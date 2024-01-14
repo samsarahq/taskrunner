@@ -22,7 +22,7 @@ github.com/kylelemons/godebug/pretty
 # github.com/lucasb-eyer/go-colorful v0.0.0-20181028223441-12d3b2882a08
 ## explicit
 github.com/lucasb-eyer/go-colorful
-# github.com/marcusolsson/tui-go v0.3.1-0.20180616142530-cd94d703fac1
+# github.com/marcusolsson/tui-go v0.4.0
 ## explicit
 github.com/marcusolsson/tui-go
 github.com/marcusolsson/tui-go/wordwrap

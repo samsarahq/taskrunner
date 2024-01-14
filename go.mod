@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/fatih/color v1.16.0
-	github.com/marcusolsson/tui-go v0.3.1-0.20180616142530-cd94d703fac1
+	github.com/marcusolsson/tui-go v0.4.0
 	github.com/mattn/go-zglob v0.0.1
 	github.com/samsarahq/go v0.0.0-20191220233105-8077c9fbaed5
 	github.com/stretchr/testify v1.2.3-0.20181014000028-04af85275a5c
