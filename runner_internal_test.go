@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/samsarahq/taskrunner/shell"
+	"github.com/ChenJesse/taskrunner/shell"
 )
 
 // MockRunnerLogger is a mock RunnerLogger implementation that

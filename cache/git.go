@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/samsarahq/taskrunner/shell"
+	"github.com/ChenJesse/taskrunner/shell"
 )
 
 type gitClient struct {

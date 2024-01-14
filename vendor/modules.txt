@@ -11,10 +11,10 @@ github.com/gdamore/encoding
 ## explicit
 github.com/gdamore/tcell
 github.com/gdamore/tcell/terminfo
-# github.com/google/go-cmp v0.4.1
-## explicit; go 1.8
-# github.com/kr/pretty v0.2.0
-## explicit; go 1.12
+# github.com/jtolds/gls v4.20.0+incompatible
+## explicit
+# github.com/kr/text v0.1.0
+## explicit
 # github.com/kylelemons/godebug v1.1.0
 ## explicit; go 1.11
 github.com/kylelemons/godebug/diff
@@ -49,8 +49,13 @@ github.com/pmezard/go-difflib/difflib
 ## explicit; go 1.17
 github.com/samsarahq/go/oops
 github.com/samsarahq/go/snapshotter
-# github.com/smartystreets/goconvey v1.6.4
-## explicit
+# github.com/samsarahq/taskrunner v0.0.0-20231026224804-b358b1d4e8dd
+## explicit; go 1.17
+github.com/samsarahq/taskrunner
+github.com/ChenJesse/taskrunner/clireporter
+github.com/ChenJesse/taskrunner/config
+github.com/ChenJesse/taskrunner/shell
+github.com/ChenJesse/taskrunner/watcher
 # github.com/stretchr/testify v1.8.4
 ## explicit; go 1.20
 github.com/stretchr/testify/assert

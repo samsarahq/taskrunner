@@ -1,0 +1,24 @@
+{
+  "title": "Taskrunner Configuration",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "extends": {
+      "type": "string",
+      "description": "Configuration file to extend, relative to this file."
+    },
+    "desiredTasks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "path": {
+      "type": "string",
+      "description":
+        "Project path, relative to the configuration file. All other paths are relative to this path. Files outside of this path will not be watched."
+    }
+  },
+  "required": ["desiredTasks"],
+  "oneOf": [{ "required": ["path"] }, { "required": ["extends"] }]
+}

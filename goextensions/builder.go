@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ChenJesse/taskrunner/clireporter"
+	"github.com/ChenJesse/taskrunner/shell"
 	"github.com/samsarahq/taskrunner"
-	"github.com/samsarahq/taskrunner/clireporter"
-	"github.com/samsarahq/taskrunner/shell"
 	"mvdan.cc/sh/interp"
 )
 

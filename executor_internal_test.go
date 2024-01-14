@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samsarahq/taskrunner/config"
-	"github.com/samsarahq/taskrunner/shell"
+	"github.com/ChenJesse/taskrunner/config"
+	"github.com/ChenJesse/taskrunner/shell"
 	"github.com/stretchr/testify/assert"
 )
 
