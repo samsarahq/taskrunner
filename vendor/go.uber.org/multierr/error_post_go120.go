@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2017-2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,38 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package atomic
+//go:build go1.20
+// +build go1.20
 
-// Error is an atomic type-safe wrapper around Value for errors
-type Error struct{ v Value }
+package multierr
 
-// errorHolder is non-nil holder for error object.
-// atomic.Value panics on saving nil object, so err object needs to be
-// wrapped with valid object first.
-type errorHolder struct{ err error }
-
-// NewError creates new atomic error object
-func NewError(err error) *Error {
-	e := &Error{}
-	if err != nil {
-		e.Store(err)
-	}
-	return e
+// Unwrap returns a list of errors wrapped by this multierr.
+func (merr *multiError) Unwrap() []error {
+	return merr.Errors()
 }
 
-// Load atomically loads the wrapped error
-func (e *Error) Load() error {
-	v := e.v.Load()
-	if v == nil {
+type multipleErrors interface {
+	Unwrap() []error
+}
+
+func extractErrors(err error) []error {
+	if err == nil {
 		return nil
 	}
 
-	eh := v.(errorHolder)
-	return eh.err
-}
+	// check if the given err is an Unwrapable error that
+	// implements multipleErrors interface.
+	eg, ok := err.(multipleErrors)
+	if !ok {
+		return []error{err}
+	}
 
-// Store atomically stores error.
-// NOTE: a holder object is allocated on each Store call.
-func (e *Error) Store(err error) {
-	e.v.Store(errorHolder{err: err})
+	return append(([]error)(nil), eg.Unwrap()...)
 }

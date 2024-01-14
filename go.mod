@@ -8,7 +8,7 @@ require (
 	github.com/mattn/go-zglob v0.0.1
 	github.com/samsarahq/go v0.0.0-20230622164605-46203ca3a6d8
 	github.com/stretchr/testify v1.8.4
-	go.uber.org/multierr v1.1.1-0.20180122172545-ddea229ff1df
+	go.uber.org/multierr v1.11.0
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
 	mvdan.cc/sh v2.5.1-0.20180917103936-65d8e2a4b156+incompatible
 )

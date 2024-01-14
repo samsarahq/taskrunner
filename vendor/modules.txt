@@ -58,9 +58,8 @@ github.com/samsarahq/go/snapshotter
 github.com/stretchr/testify/assert
 # go.uber.org/atomic v1.3.3-0.20181018215023-8dc6146f7569
 ## explicit
-go.uber.org/atomic
-# go.uber.org/multierr v1.1.1-0.20180122172545-ddea229ff1df
-## explicit
+# go.uber.org/multierr v1.11.0
+## explicit; go 1.19
 go.uber.org/multierr
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 ## explicit
