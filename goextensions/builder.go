@@ -54,8 +54,9 @@ type GoBuilder struct {
 	err error
 
 	// Options:
-	LogToStdout bool
-	ModuleRoot  string
+	LogToStdout     bool
+	ModuleRoot      string
+	ShellRunOptions []shell.RunOption
 }
 
 func NewGoBuilder() *GoBuilder {
@@ -113,13 +114,15 @@ func (b *GoBuilder) build() {
 	}
 
 	fmt.Fprintf(stdout, "building packages: %s", pkgList)
-	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), func(r *interp.Runner) {
+	shellRunOptions := []shell.RunOption{func(r *interp.Runner) {
 		r.Stdout = stdout
 		r.Stderr = stderr
 		if b.ModuleRoot != "" {
 			r.Dir = b.ModuleRoot
 		}
-	})
+	}}
+	shellRunOptions = append(shellRunOptions, b.ShellRunOptions...)
+	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), shellRunOptions...)
 	fmt.Fprintln(stdout, "done building packages")
 
 	close(b.doneCh)
@@ -225,6 +228,8 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 		// be thrown in the from the registry when the task is added.
 		if task.Run != nil {
 			newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
+				shellRun = injectShellRunOptions(shellRun, builder.ShellRunOptions)
+
 				if err := builder.Build(ctx, shellRun, pkg); err != nil {
 					return err
 				}
@@ -241,6 +246,8 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 			}
 		} else {
 			newTask.RunWithFlags = func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
+				shellRun = injectShellRunOptions(shellRun, builder.ShellRunOptions)
+
 				if err := builder.Build(ctx, shellRun, pkg); err != nil {
 					return err
 				}
@@ -266,5 +273,16 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 		}
 
 		return &newTask
+	}
+}
+
+// injectShellRunOptions injects additional options into shellRun.
+func injectShellRunOptions(shellRun shell.ShellRun, additionalOptions []shell.RunOption) shell.ShellRun {
+	return func(ctx context.Context, command string, opts ...shell.RunOption) error {
+		// Create a new options slice combining the builder options with the ones passed in.
+		var optionsWithBuilderOptions []shell.RunOption
+		optionsWithBuilderOptions = append(optionsWithBuilderOptions, opts...)
+		optionsWithBuilderOptions = append(optionsWithBuilderOptions, additionalOptions...)
+		return shellRun(ctx, command, optionsWithBuilderOptions...)
 	}
 }
