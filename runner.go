@@ -162,6 +162,7 @@ func Run(options ...RunOption) {
 	}
 
 	if err := runtime.flags.Parse(os.Args[1:]); err != nil {
+		logger.Printf("Error parsing command line flags: %v\n", err)
 		return
 	}
 
@@ -173,7 +174,7 @@ func Run(options ...RunOption) {
 		c, err = config.ReadConfig(configFile)
 	}
 	if err != nil {
-		logger.Fatalf("Error: unable to read config: %v\n", err)
+		logger.Printf("Error: unable to read config file '%s': %v\n", configFile, err)
 		return
 	}
 	logger.Printf("Using config at %s\n", c.ConfigPath)
@@ -271,7 +272,25 @@ func Run(options ...RunOption) {
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Fatalf("run error:\n%v\n", err)
+		if oops.Cause(err) == errUndefinedTaskName {
+			logger.Printf("Error: undefined task encountered. Please check task name is correct and registered in taskrunner registry.\n")
+		} else if !watchMode {
+			logger.Printf("Error during task execution:\n%v\n", err)
+		}
+		
+		// Add more context about the error state
+		logger.Printf("Watch mode: %t, Desired tasks: %v\n", watchMode, desiredTasks)
+		
+		// Log the full error with stack trace if available
+		logger.Printf("Full error details:\n%v\n", err)
+
+		
+		// Log the error type and any wrapped errors
+		if wrappedErr := oops.Cause(err); wrappedErr != err {
+			logger.Printf("Underlying error: %v\n", wrappedErr)
+		}
+		
+		logger.Fatalf("Run failed with error:\n%v\n", err)
 		return
 	}
 }

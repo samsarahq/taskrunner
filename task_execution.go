@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"time"
+	"log"
 )
 
 type taskExecutionState int
@@ -71,12 +72,14 @@ func (e *taskExecution) invalidate(executionCtx context.Context) {
 		return
 	}
 
+	logger.Printf("Task %s: Invalidating from state %v\n", e.definition.Name, e.state)
 	e.cancel()
 	e.state = taskExecutionState_invalid
 	e.ctx, e.cancel = context.WithCancel(executionCtx)
 	<-e.terminalCh
 	e.terminalCh = make(chan struct{}, 1)
 	e.pendingInvalidations = make(map[InvalidationEvent]struct{})
+	logger.Printf("Task %s: Invalidated\n", e.definition.Name)
 }
 
 // Invalidate marks a taskExecution as invalid. It does not produce
@@ -93,6 +96,7 @@ func (e *taskExecution) Invalidate(event InvalidationEvent) bool {
 		return false
 	}
 
+	logger.Printf("Task %s: Invalidating due to event: %v\n", e.definition.Name, event.Description())
 	e.pendingInvalidations[event] = struct{}{}
 
 	for _, dep := range e.dependents {

@@ -66,6 +66,8 @@ type Executor struct {
 	watcherEnhancers []WatcherEnhancer
 }
 
+var logger RunnerLogger = log.New(os.Stderr, "", log.LstdFlags)
+
 // WatcherEnhancer is a function to modify or replace a watcher.
 type WatcherEnhancer func(watcher.Watcher) watcher.Watcher
 
@@ -608,6 +610,7 @@ func (e *Executor) showTaskFlagHelpText(taskName string) {
 // runPass kicks off tasks that are in an executable state.
 func (e *Executor) runPass() {
 	if e.ctx.Err() != nil {
+		logger.Printf("Executor: Context error during runPass: %v\n", e.ctx.Err())
 		return
 	}
 
@@ -646,6 +649,7 @@ func (e *Executor) runPass() {
 					}
 
 					if ctx.Err() == context.Canceled {
+						logger.Printf("Executor: Task %s was canceled\n", task.Name)
 						// Only move ourselves to permanently canceled if taskrunner is shutting down. Note
 						// that the invalidation codepath already set the state as invalid, so there is
 						// no else statement.
@@ -656,12 +660,14 @@ func (e *Executor) runPass() {
 							simpleEvent: execution.simpleEvent(),
 						})
 					} else if err != nil {
+						logger.Printf("Executor: Task %s failed with error: %v\n", task.Name, err)
 						execution.state = taskExecutionState_error
 						e.publishEvent(&TaskFailedEvent{
 							simpleEvent: execution.simpleEvent(),
 							Error:       err,
 						})
 					} else {
+						logger.Printf("Executor: Task %s completed successfully\n", task.Name)
 						execution.state = taskExecutionState_done
 						e.publishEvent(&TaskCompletedEvent{
 							simpleEvent: execution.simpleEvent(),
@@ -676,6 +682,7 @@ func (e *Executor) runPass() {
 					execution.terminalCh <- struct{}{}
 
 					if task.KeepAlive && execution.state == taskExecutionState_error {
+						logger.Printf("Executor: Task %s marked as KeepAlive, invalidating due to error\n", task.Name)
 						e.Invalidate(task, KeepAliveStopped{})
 					}
 
@@ -691,7 +698,6 @@ func (e *Executor) runPass() {
 					return nil
 				})
 			}(task, execution)
-
 		}
 	}
 }
