@@ -13,6 +13,10 @@ type Task struct {
 	// A one or two sentence description of what the task does
 	Description string
 
+	// Owner is the owner of the task, such as the name or contact info of the team responsible
+	// for maintaining it. It is optional.
+	Owner string
+
 	// XXX: Pass files in so that task can decide to do less work, i.e. if
 	// you change a go file we can run go fmt on just that file.
 
