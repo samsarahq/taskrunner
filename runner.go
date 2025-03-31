@@ -227,6 +227,7 @@ func Run(options ...RunOption) {
 			logger.Fatalln("Error: invalid target task(s)")
 			return
 		} else { // no tasks were specified
+                        logger.Printf("No tasks specified.")
 			desiredTasks = c.DesiredTasks
 			watchMode = !nonInteractive
 		}
