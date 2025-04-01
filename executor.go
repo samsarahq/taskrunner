@@ -314,7 +314,11 @@ func (e *Executor) ShellRun(ctx context.Context, command string, opts ...shell.R
 	}
 	options = append(options, e.shellRunOptions...)
 	options = append(options, opts...)
-	return shell.Run(ctx, command, options...)
+	err := shell.Run(ctx, command, options...)
+	if err != nil {
+		return oops.Wrapf(err, "Executor failed to run shell command")
+	}
+	return nil
 }
 
 func (e *Executor) taskExecution(t *Task) *taskExecution { return e.tasks[t] }
@@ -685,7 +689,7 @@ func (e *Executor) runPass() {
 
 					e.runPass()
 					if err != nil && ctx.Err() != context.Canceled {
-						return err
+						return oops.Wrapf(err, "Executor failed to run task")
 					}
 
 					return nil

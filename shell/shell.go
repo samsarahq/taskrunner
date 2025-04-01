@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/samsarahq/go/oops"
 	"mvdan.cc/sh/interp"
 	"mvdan.cc/sh/syntax"
 )
@@ -48,7 +49,7 @@ func Env(vars map[string]string) RunOption {
 func Run(ctx context.Context, command string, opts ...RunOption) error {
 	p, err := syntax.NewParser().Parse(strings.NewReader(command), "")
 	if err != nil {
-		return err
+		return oops.Wrapf(err, "failed to parse shell command")
 	}
 
 	r, err := interp.New()

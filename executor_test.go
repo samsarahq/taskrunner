@@ -2,6 +2,7 @@ package taskrunner_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -192,5 +193,65 @@ func TestExecutorInvalidations(t *testing.T) {
 		t.Run(testcase.Name, testcase.Test)
 		mockA.Reset()
 		mockB.Reset()
+	}
+}
+
+func TestExecutorErrorHandling(t *testing.T) {
+	config := &config.Config{}
+
+	for _, testcase := range []struct {
+		Name string
+		Test func(t *testing.T)
+	}{
+		{
+			"shell command error",
+			func(t *testing.T) {
+				executor := taskrunner.NewExecutor(config, []*taskrunner.Task{
+					{
+						Name: "shell-error",
+						Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+							return shellRun(ctx, "invalid_command_that_will_fail")
+						},
+					},
+				})
+
+				events := executor.Subscribe()
+				go func() {
+					event := consumeUntil(t, events, taskrunner.ExecutorEventKind_TaskFailed)
+					assert.Contains(t, event.(*taskrunner.TaskFailedEvent).Error.Error(),
+						"Executor failed to run shell command")
+				}()
+
+				err := executor.Run(context.Background(), []string{"shell-error"}, &taskrunner.Runtime{})
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "Executor failed to run task")
+			},
+		},
+		{
+			"task execution error",
+			func(t *testing.T) {
+				executor := taskrunner.NewExecutor(config, []*taskrunner.Task{
+					{
+						Name: "failing-task",
+						Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+							return errors.New("task failed")
+						},
+					},
+				})
+
+				events := executor.Subscribe()
+				go func() {
+					event := consumeUntil(t, events, taskrunner.ExecutorEventKind_TaskFailed)
+					assert.Contains(t, event.(*taskrunner.TaskFailedEvent).Error.Error(),
+						"task failed")
+				}()
+
+				err := executor.Run(context.Background(), []string{"failing-task"}, &taskrunner.Runtime{})
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "Executor failed to run task")
+			},
+		},
+	} {
+		t.Run(testcase.Name, testcase.Test)
 	}
 }
