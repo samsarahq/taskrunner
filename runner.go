@@ -253,7 +253,10 @@ func Run(options ...RunOption) {
 		sub := runtime.subscriptions[i]
 		ch := executor.Subscribe()
 		g.Go(func() error {
-			return sub(ch)
+			if err := sub(ch); err != nil {
+				return oops.Wrapf(err, "subscription error")
+			}
+			return nil
 		})
 	}
 
@@ -264,7 +267,7 @@ func Run(options ...RunOption) {
 		// if it's a well-known executor error, or the underlying task failed AND
 		// we're not in watch mode.
 		if oops.Cause(err) == errUndefinedTaskName || !watchMode {
-			return err
+			return oops.Wrapf(err, "running executor")
 		}
 
 		return nil
