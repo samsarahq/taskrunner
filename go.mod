@@ -30,7 +30,7 @@ require (
 	go.uber.org/atomic v1.3.3-0.20181018215023-8dc6146f7569 // indirect
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2 // indirect
 	golang.org/x/net v0.0.0-20190311183353-d8887717615a // indirect
-	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
+	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/text v0.3.1-0.20181030141323-6f44c5a2ea40 // indirect
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 )
