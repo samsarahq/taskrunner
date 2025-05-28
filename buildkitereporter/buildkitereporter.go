@@ -181,11 +181,16 @@ func (r *reporter) write(tasks []*taskrunner.TaskHandler) (io.Reader, int) {
 	fmt.Fprintf(&buf, "<h5>%s taskrunner: %d tasks failed</h5>\n", os.Getenv("BUILDKITE_LABEL"), failureCount)
 
 	for _, task := range failedTasks {
+		ownerMsg := ""
+		if task.Owner != "" {
+			ownerMsg = fmt.Sprintf("task owner: %s\n", task.Owner)
+		}
 		fmt.Fprintf(&buf, "<details><summary><code>%s</code></summary>\n<pre>", task.Name)
 		for _, out := range r.stderrs[task] {
 			fmt.Fprintf(&buf, "<code>%s</code>\n", out)
 		}
 		fmt.Fprintln(&buf, "</pre></details>")
+		fmt.Fprint(&buf, ownerMsg)
 	}
 
 	return &buf, failureCount
