@@ -75,8 +75,12 @@ func NewGoBuilder() *GoBuilder {
 		for {
 			select {
 			case request := <-ch:
+				builder.mu.Lock()
 				builder.packages[request.Package] = struct{}{}
-				builder.loggers[request.Logger] = struct{}{}
+				if request.Logger != nil {
+					builder.loggers[request.Logger] = struct{}{}
+				}
+				builder.mu.Unlock()
 				timer.Reset(time.Millisecond * 500)
 
 			case <-timer.C:
@@ -125,8 +129,10 @@ func (b *GoBuilder) build() {
 	b.err = shell.Run(b.ctx, fmt.Sprintf("go install -v %s", pkgList), shellRunOptions...)
 	fmt.Fprintln(stdout, "done building packages")
 
-	close(b.doneCh)
-	b.doneCh = nil
+	if b.doneCh != nil {
+		close(b.doneCh)
+		b.doneCh = nil
+	}
 
 	// Clear the package and logger list.
 	b.packages = make(map[string]struct{})
@@ -147,10 +153,15 @@ func (b *GoBuilder) Build(ctx context.Context, shellRun shell.ShellRun, pkg stri
 	if b.doneCh == nil {
 		b.doneCh = make(chan struct{}, 0)
 	}
+	doneCh := b.doneCh
 	b.mu.Unlock()
 
-	<-b.doneCh
-	return b.err
+	<-doneCh
+
+	b.mu.Lock()
+	err := b.err
+	b.mu.Unlock()
+	return err
 }
 
 // buildBinder provides hooks for finding the dependencies of a package
@@ -166,18 +177,25 @@ func newBuildBinder(pkg string) *buildBinder {
 	return binder
 }
 
-func (b *buildBinder) saveDependencies(ctx context.Context, root string, shellRun shell.ShellRun) error {
+func (b *buildBinder) getPackageDependencies(ctx context.Context, root string, shellRun shell.ShellRun) ([]string, error) {
 	var buffer bytes.Buffer
 	if err := shellRun(ctx, fmt.Sprintf("go list -f '{{ .Deps }}' %s", b.pkg), shell.Stdout(&buffer), func(r *interp.Runner) {
 		if root != "" {
 			r.Dir = root
 		}
 	}); err != nil {
-		return err
+		return nil, err
 	}
-
-	b.pkgDependencies = strings.Split(strings.TrimSuffix(strings.TrimPrefix(buffer.String(), "["), "]"), " ")
-	return nil
+	allDependencies := strings.Split(strings.TrimSuffix(strings.TrimPrefix(buffer.String(), "["), "]\n"), " ")
+	dependencies := make([]string, 0, len(allDependencies))
+	for _, dep := range allDependencies {
+		if !isStdLib(dep) {
+			dependencies = append(dependencies, dep)
+		}
+	}
+	// Add the current package to the dependencies.
+	dependencies = append(dependencies, b.pkg)
+	return dependencies, nil
 }
 
 func (b *buildBinder) shouldInvalidate(event taskrunner.InvalidationEvent) bool {
@@ -198,11 +216,8 @@ func (b *buildBinder) shouldInvalidate(event taskrunner.InvalidationEvent) bool 
 		}
 
 		for _, dep := range append(b.pkgDependencies, b.pkg) {
-			// Ignore dependencies that are part of the std lib.
-			if isStdLib(dep) {
-				continue
-			}
-			if ok := strings.Contains(event.File, dep); ok {
+			dir := filepath.Dir(event.File)
+			if strings.HasSuffix(dir, dep) {
 				return true
 			}
 		}
@@ -222,19 +237,38 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 		newTask := *task
 
 		buildBinder := newBuildBinder(pkg)
+
+		augmentTask := func(ctx context.Context, shellRun shell.ShellRun) (shell.ShellRun, error) {
+			shellRun = injectShellRunOptions(shellRun, builder.ShellRunOptions)
+
+			if err := builder.Build(ctx, shellRun, pkg); err != nil {
+				return nil, err
+			}
+
+			dependencies, err := buildBinder.getPackageDependencies(ctx, builder.ModuleRoot, shellRun)
+			if err != nil {
+				return nil, err
+			}
+			buildBinder.pkgDependencies = dependencies
+
+			sources := make([]string, 0, len(dependencies))
+			// Watch all Go files in each dependent package.
+			for _, dependency := range dependencies {
+				sources = append(sources, "**/"+dependency+"/*.go")
+			}
+			newTask.Sources = append(task.Sources, sources...)
+
+			return shellRun, nil
+		}
+
 		// task.Run is deprecated, so default to defining
 		// newTask.RunWithFlags if task.Run is not defined.
 		// If both Run and RunWithFlags are defined, an error will
 		// be thrown in the from the registry when the task is added.
 		if task.Run != nil {
 			newTask.Run = func(ctx context.Context, shellRun shell.ShellRun) error {
-				shellRun = injectShellRunOptions(shellRun, builder.ShellRunOptions)
-
-				if err := builder.Build(ctx, shellRun, pkg); err != nil {
-					return err
-				}
-
-				if err := buildBinder.saveDependencies(ctx, builder.ModuleRoot, shellRun); err != nil {
+				shellRun, err := augmentTask(ctx, shellRun)
+				if err != nil {
 					return err
 				}
 
@@ -246,13 +280,8 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 			}
 		} else {
 			newTask.RunWithFlags = func(ctx context.Context, shellRun shell.ShellRun, flags map[string]taskrunner.FlagArg) error {
-				shellRun = injectShellRunOptions(shellRun, builder.ShellRunOptions)
-
-				if err := builder.Build(ctx, shellRun, pkg); err != nil {
-					return err
-				}
-
-				if err := buildBinder.saveDependencies(ctx, builder.ModuleRoot, shellRun); err != nil {
+				shellRun, err := augmentTask(ctx, shellRun)
+				if err != nil {
 					return err
 				}
 
