@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"io"
 	"os"
 	"testing"
 
@@ -17,19 +18,22 @@ type MockRunnerLogger struct {
 	fatal bool
 }
 
-func (l *MockRunnerLogger) Printf(format string, v ...interface{}) {}
-func (l *MockRunnerLogger) Println(v ...interface{})               {}
-func (l *MockRunnerLogger) Fatalf(format string, v ...interface{}) {
+func (l *MockRunnerLogger) Printf(_ string, _ ...interface{}) {}
+func (l *MockRunnerLogger) Println(_ ...interface{})          {}
+func (l *MockRunnerLogger) Fatalf(_ string, _ ...interface{}) {
 	l.fatal = true
 }
-func (l *MockRunnerLogger) Fatalln(v ...interface{}) {
+func (l *MockRunnerLogger) Fatalln(_ ...interface{}) {
 	l.fatal = true
+}
+func (l *MockRunnerLogger) Writer() io.Writer {
+	return io.Discard
 }
 
 func TestRunnerRun_FatalScenarios(t *testing.T) {
 	// setup mock config and task
 	testConfigFile := "config/testdata/base.taskrunner.json"
-	mockRunWithFlags := func(ctx context.Context, shellRun shell.ShellRun, flags map[string]FlagArg) error {
+	mockRunWithFlags := func(_ context.Context, _ shell.ShellRun, _ map[string]FlagArg) error {
 		return nil
 	}
 	mockTask := &Task{
@@ -57,6 +61,12 @@ func TestRunnerRun_FatalScenarios(t *testing.T) {
 			description:   "Fatals when -list and -listAll are both specified",
 			tasks:         []*Task{mockTask},
 			cliArgs:       []string{"", "--config", testConfigFile, "--list", "--listAll"},
+			expectedFatal: true,
+		},
+		{
+			description:   "Fatals when unrecognized flag is specified",
+			tasks:         []*Task{mockTask},
+			cliArgs:       []string{"", "--unrecognizedFlag"},
 			expectedFatal: true,
 		},
 		{
