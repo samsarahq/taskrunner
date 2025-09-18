@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -31,6 +32,7 @@ type RunnerLogger interface {
 	Println(v ...interface{})
 	Fatalf(format string, v ...interface{})
 	Fatalln(v ...interface{})
+	Writer() io.Writer
 }
 
 // Runtime represents the external interface of an Executor's runtime. It is how taskrunner
@@ -50,23 +52,24 @@ func newRuntime() *Runtime {
 		registry: DefaultRegistry,
 		flags:    flag.NewFlagSet("taskrunner", 0),
 	}
+	r.flags.SetOutput(logger.Writer())
 
 	r.flags.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "[Usage]\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        taskrunner [task...]\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        taskrunner [task] --help\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        taskrunner [option]\n")
-		fmt.Fprintln(flag.CommandLine.Output())
-		fmt.Fprintf(flag.CommandLine.Output(), "[Options]\n")
+		logger.Printf("[Usage]\n")
+		logger.Printf("        taskrunner [task...]\n")
+		logger.Printf("        taskrunner [task] --help\n")
+		logger.Printf("        taskrunner [option]\n")
+		logger.Println()
+		logger.Printf("[Options]\n")
 		r.flags.PrintDefaults()
-		fmt.Fprintln(flag.CommandLine.Output())
-		fmt.Fprintf(flag.CommandLine.Output(), "[Example Usage]\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask`\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask ---help`\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask1 mytask2`\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner mytask --mode=dev`\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner --config ./customconfig.json mytask --mode=dev`\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        `taskrunner --list`\n")
+		logger.Println()
+		logger.Printf("[Example Usage]\n")
+		logger.Printf("        `taskrunner mytask`\n")
+		logger.Printf("        `taskrunner mytask ---help`\n")
+		logger.Printf("        `taskrunner mytask1 mytask2`\n")
+		logger.Printf("        `taskrunner mytask --mode=dev`\n")
+		logger.Printf("        `taskrunner --config ./customconfig.json mytask --mode=dev`\n")
+		logger.Printf("        `taskrunner --list`\n")
 	}
 	r.flags.StringVar(&configFile, "config", "", "Configuration file to use")
 	r.flags.BoolVar(&nonInteractive, "non-interactive", false, "Non-interactive mode (only applies when running the default set of tasks)")
@@ -162,6 +165,7 @@ func Run(options ...RunOption) {
 	}
 
 	if err := runtime.flags.Parse(os.Args[1:]); err != nil {
+		logger.Fatalf("Error: failed to parse flags: %v\n", err)
 		return
 	}
 
