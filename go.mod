@@ -1,6 +1,6 @@
 module github.com/samsarahq/taskrunner
 
-go 1.17
+go 1.24.2
 
 require (
 	github.com/fatih/color v1.7.1-0.20180516100307-2d684516a886
