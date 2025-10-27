@@ -76,9 +76,9 @@ func TestRunnerRun_FatalScenarios(t *testing.T) {
 			expectedFatal: false,
 		},
 		{
-			description:   "Fatals when task is specified but unknown",
+			description:   "Fatals when an unknown task is specified",
 			tasks:         []*Task{mockTask},
-			cliArgs:       []string{"", "--config", testConfigFile, "unknown/task", "--someFlag"},
+			cliArgs:       []string{"", "--config", testConfigFile, "basic", "unknown/task", "--someFlag"},
 			expectedFatal: true,
 		},
 	}
