@@ -3,6 +3,7 @@ package watcher
 import (
 	"bufio"
 	"context"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,6 +79,12 @@ func (w *FSEventsWatcher) Run(ctx context.Context) error {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := strings.Split(scanner.Text(), " ")
+
+			// Skip malformed fswatch output
+			if len(line) < 2 {
+				log.Printf("[taskrunner/watcher] Warning: skipping malformed fswatch output: %q (expected format: '<path> <event_flags>')", scanner.Text())
+				continue
+			}
 
 			relFilename, err := filepath.Rel(w.directory, line[0])
 			if err != nil {
