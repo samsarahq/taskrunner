@@ -54,6 +54,7 @@ github.com/samsarahq/go/snapshotter
 # github.com/stretchr/testify v1.2.3-0.20181014000028-04af85275a5c
 ## explicit
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
 # go.uber.org/atomic v1.3.3-0.20181018215023-8dc6146f7569
 ## explicit
 go.uber.org/atomic
