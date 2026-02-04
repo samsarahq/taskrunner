@@ -29,7 +29,7 @@ func FileAppendOption(r *taskrunner.Runtime) {
 	}
 
 	logger := newLogger(f)
-	logger.SetSeparator("|")
+	logger.SetSeparator("| ")
 
 	option(logger)(r)
 }
@@ -46,7 +46,7 @@ func FileByDateOption(r *taskrunner.Runtime) {
 	}
 
 	logger := newLogger(f)
-	logger.SetSeparator("|")
+	logger.SetSeparator("| ")
 
 	option(logger)(r)
 }
