@@ -256,7 +256,8 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 			for _, dependency := range dependencies {
 				sources = append(sources, "**/"+dependency+"/*.go")
 			}
-			newTask.Sources = append(task.Sources, sources...)
+			// Append onto newTask.Sources, not task.Sources, so caller-added sources survive.
+			newTask.Sources = append(newTask.Sources, sources...)
 
 			return shellRun, nil
 		}
