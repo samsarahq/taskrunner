@@ -54,11 +54,13 @@ func getCacheFilePath(dir string) string {
 }
 
 func (c *Cache) Start(ctx context.Context) error {
-	c.snapshotter = newSnapshotter(
-		func(ctx context.Context, command string, opts ...shell.RunOption) error {
-			return shell.Run(ctx, command, append(opts, c.opts...)...)
-		},
-	)
+	if c.snapshotter == nil {
+		c.snapshotter = newSnapshotter(
+			func(ctx context.Context, command string, opts ...shell.RunOption) error {
+				return shell.Run(ctx, command, append(opts, c.opts...)...)
+			},
+		)
+	}
 
 	s, err := c.snapshotter.Read(c.cacheFile)
 	// If we can't get a cache file, assume that everything is dirty and needs to be re-run.
@@ -73,7 +75,10 @@ func (c *Cache) Start(ctx context.Context) error {
 
 	files, err := c.snapshotter.Diff(ctx, s)
 	if err != nil {
-		return err
+		// Don't fatal on transient git failures; fall back to allDirty so the run makes forward progress.
+		log.Printf("Warning: cache diff failed (%v), treating all files as dirty", err)
+		c.allDirty = true
+		return nil
 	}
 	c.dirtyFiles = files
 
@@ -85,7 +90,12 @@ func (c *Cache) Finish(ctx context.Context) error {
 	if err := os.MkdirAll(CacheDir, os.ModePerm); err != nil {
 		return err
 	}
-	return c.snapshotter.Write(ctx, c.cacheFile)
+	if err := c.snapshotter.Write(ctx, c.cacheFile); err != nil {
+		// Don't fatal here either; the next run just won't benefit from caching.
+		log.Printf("Warning: cache write failed (%v), next run will not benefit from caching", err)
+		return nil
+	}
+	return nil
 }
 
 func (c *Cache) isFirstRun(task *taskrunner.Task) bool {
