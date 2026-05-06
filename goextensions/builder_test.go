@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWrapWithGoBuild_Sources(t *testing.T) {
+func TestWrapWithGoBuild_ShouldInvalidate(t *testing.T) {
 	builder := goextensions.NewGoBuilder()
 	wrapper := builder.WrapWithGoBuild("github.com/samsarahq/taskrunner/goextensions/foo")
 
@@ -22,7 +22,7 @@ func TestWrapWithGoBuild_Sources(t *testing.T) {
 	})
 	assert.NotNil(t, task)
 
-	// No sources until we run the task. Invalidate on any Go file change.
+	// Before the task has run, dependencies are unknown — invalidate on any Go file change.
 	assert.Empty(t, task.Sources)
 	assert.True(t, task.ShouldInvalidate(taskrunner.FileChange{
 		File: "github.com/samsarahq/taskrunner/goextensions/unrelated/baz.go",
@@ -30,11 +30,9 @@ func TestWrapWithGoBuild_Sources(t *testing.T) {
 
 	err := task.Run(context.Background(), shell.Run)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, task.Sources, []string{
-		"**/github.com/samsarahq/taskrunner/goextensions/foo/*.go",
-		"**/github.com/samsarahq/taskrunner/goextensions/foo/bar/*.go",
-	})
-	// Only invalidate on relevant Go file changes.
+
+	// Sources is intentionally left empty; non-dep filtering is done via ShouldInvalidate.
+	assert.Empty(t, task.Sources)
 	assert.False(t, task.ShouldInvalidate(taskrunner.FileChange{
 		File: "github.com/samsarahq/taskrunner/goextensions/unrelated/baz.go",
 	}))

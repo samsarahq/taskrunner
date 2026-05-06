@@ -249,14 +249,10 @@ func (builder *GoBuilder) WrapWithGoBuild(pkg string) taskrunner.TaskOption {
 			if err != nil {
 				return nil, err
 			}
+			// Filtering happens via shouldInvalidate; do NOT push deps into
+			// newTask.Sources — the watcher's single-threaded zglob.Match loop
+			// becomes O(tasks × deps) per event and stalls invalidations.
 			buildBinder.pkgDependencies = dependencies
-
-			sources := make([]string, 0, len(dependencies))
-			// Watch all Go files in each dependent package.
-			for _, dependency := range dependencies {
-				sources = append(sources, "**/"+dependency+"/*.go")
-			}
-			newTask.Sources = append(task.Sources, sources...)
 
 			return shellRun, nil
 		}
