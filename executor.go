@@ -272,9 +272,9 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 
 	var errors error
 	// Run all onStartHooks before starting, after the DAG has been created.
-	for _, hook := range runtime.onStartHooks {
+	for i, hook := range runtime.onStartHooks {
 		if err := hook(ctx, e); err != nil {
-			errors = multierr.Append(errors, err)
+			errors = multierr.Append(errors, oops.Wrapf(err, "OnStart hook %d failed", i))
 		}
 	}
 	if errors != nil {
@@ -287,9 +287,9 @@ func (e *Executor) Run(ctx context.Context, taskNames []string, runtime *Runtime
 	errors = multierr.Append(errors, e.wg.Wait())
 
 	// Run all onStopHooks after stopping.
-	for _, hook := range runtime.onStopHooks {
+	for i, hook := range runtime.onStopHooks {
 		if err := hook(ctx, e); err != nil {
-			errors = multierr.Append(errors, err)
+			errors = multierr.Append(errors, oops.Wrapf(err, "OnStop hook %d failed", i))
 		}
 	}
 
