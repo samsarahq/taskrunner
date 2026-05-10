@@ -143,7 +143,7 @@ func (r *Runtime) groupTaskAndFlagArgs(args []string) (map[string][]string, bool
 				currFlagsList = []string{}
 			} else {
 				foundInvalidTasks = true
-				logger.Printf("Unrecognized task: %s, ignoring it and following flags\n", arg)
+				logger.Printf("Unrecognized task: %s\n", arg)
 				// Note that in this case, currTaskName must be "" to ignore following flags.
 			}
 		}
@@ -221,19 +221,19 @@ func Run(options ...RunOption) {
 
 	taskAndFlagArgs := runtime.flags.Args() // command-line arguments that are not flags for taskrunner itself
 	taskFlagGroups, foundInvalidTasks := runtime.groupTaskAndFlagArgs(taskAndFlagArgs)
+	if foundInvalidTasks { // fail if any task was invalid
+		logger.Fatalln("Error: invalid target task(s) found")
+		return
+	}
+
 	var desiredTasks []string
 	for taskName := range taskFlagGroups {
 		desiredTasks = append(desiredTasks, taskName)
 	}
 	watchMode := watch
 	if len(desiredTasks) == 0 {
-		if foundInvalidTasks { // tasks were specified, but all invalid
-			logger.Fatalln("Error: invalid target task(s)")
-			return
-		} else { // no tasks were specified
-			desiredTasks = c.DesiredTasks
-			watchMode = !nonInteractive
-		}
+		desiredTasks = c.DesiredTasks
+		watchMode = !nonInteractive
 	}
 	logger.Println("Desired tasks:", strings.Join(desiredTasks, ", "))
 	logger.Printf("Watch mode: %t\n", watchMode)
