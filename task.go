@@ -41,7 +41,8 @@ type Task struct {
 	Dependencies []*Task
 
 	// KeepAlive specifies whether or not this task is long lived.
-	// If true, this task will be restarted when it exits, regardless of exit code.
+	// If true, this task will be restarted whenever it exits, regardless of
+	// exit code, until taskrunner itself stops.
 	KeepAlive bool
 
 	// Hidden specifies whether or not to show the task when -list is called.
