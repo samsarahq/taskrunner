@@ -2,6 +2,7 @@ package taskrunner_test
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -59,4 +60,49 @@ func TestExecutorKeepAliveRestartsOnCleanExit(t *testing.T) {
 
 	cancel()
 	assert.NoError(t, <-done)
+}
+
+// The error-exit restart path predates the clean-exit one; assert it still
+// holds so the widened condition cannot regress either branch in isolation.
+//
+// No executor.Subscribe here: a subscription holds a channel the executor
+// publishes into, and cancel() closes those channels while the invalidation
+// loop can still be publishing (executor.go publishEvent send on a closed
+// channel — an upstream shutdown ordering gap, see the note in the PR). The
+// clean-exit test above only drains events before cancelling; polling calls
+// keeps this one off that closed-channel window.
+func TestExecutorKeepAliveRestartsOnErrorExit(t *testing.T) {
+	conf := &config.Config{}
+
+	var calls int32
+	task := &taskrunner.Task{
+		Name: "keepalive",
+		Run: func(ctx context.Context, shellRun shell.ShellRun) error {
+			atomic.AddInt32(&calls, 1)
+			return errors.New("exit")
+		},
+		KeepAlive: true,
+	}
+
+	executor := taskrunner.NewExecutor(conf, []*taskrunner.Task{task})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error)
+	go func() {
+		done <- executor.Run(ctx, []string{"keepalive"}, &taskrunner.Runtime{})
+	}()
+
+	deadline := time.After(10 * time.Second)
+	for atomic.LoadInt32(&calls) < 2 {
+		select {
+		case <-deadline:
+			cancel()
+			t.Fatalf("expected the KeepAlive task to be restarted after an error exit, calls so far: %d", atomic.LoadInt32(&calls))
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+
+	cancel()
+	// Run surfaces the task's error even though the task was kept alive.
+	assert.Error(t, <-done)
 }
