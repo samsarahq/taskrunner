@@ -679,7 +679,14 @@ func (e *Executor) runPass() {
 					// waiting for this to complete.
 					execution.terminalCh <- struct{}{}
 
-					if task.KeepAlive && execution.state == taskExecutionState_error {
+					// A KeepAlive task is long-lived, so it is expected to run
+					// until taskrunner itself stops. Invalidate on any exit so
+					// it is restarted, regardless of exit code (see the
+					// KeepAlive doc comment on Task). The invalidation is a
+					// no-op for a task canceled by taskrunner shutdown or by
+					// another invalidation, since invalidate() only acts on
+					// running, error, and done states.
+					if task.KeepAlive && execution.state != taskExecutionState_canceled {
 						e.Invalidate(task, KeepAliveStopped{})
 					}
 
